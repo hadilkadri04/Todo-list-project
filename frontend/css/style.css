@@ -1,0 +1,25 @@
+body {
+    font-family: Arial, sans-serif;
+    max-width: 600px;
+    margin: auto;
+    padding: 20px;
+}
+.task {
+    padding: 10px;
+    margin: 5px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.task.completed {
+    text-decoration: line-through;
+    color: gray;
+}
+.task-actions button {
+    margin-left: 5px;
+    padding: 4px 8px;
+    font-size: 0.9em;
+}
