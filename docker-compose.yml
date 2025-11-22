@@ -31,7 +31,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "8080:80"
+      -    # or 3000, 8888, etc.
     container_name: todolist-frontend
     depends_on:
       - backend
