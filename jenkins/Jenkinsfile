@@ -37,18 +37,26 @@ pipeline {
             }
         }
 
-        stage('2. Setup') {
-            steps {
-                bat '''
-                    @echo off
-                    echo 🔧 Cleaning old containers...
-                    for /f "tokens=*" %%i in ('docker ps -q --filter name=todolist- 2^>nul') do (
-                        docker stop %%i 2>nul && docker rm %%i 2>nul
-                    )
-                    docker volume prune -f 2>nul
-                '''
-            }
-        }
+stage('2. Setup') {
+    steps {
+        echo "🔧 Setting up environment..."
+        bat '''
+            @echo off
+            echo Stopping and removing old containers...
+            for /f "tokens=*" %%i in ('docker ps -q --filter name=todolist- 2^>nul') do (
+                echo • Stopping container: %%i
+                docker stop %%i 2>nul
+            )
+            for /f "tokens=*" %%i in ('docker ps -aq --filter name=todolist- 2^>nul') do (
+                echo • Removing container: %%i
+                docker rm %%i 2>nul
+            )
+            echo Pruning volumes...
+            docker volume prune -f 2>nul
+        '''
+        echo "✅ Setup complete"
+    }
+}
 
         stage('3. Build') {
             parallel {
@@ -72,7 +80,7 @@ pipeline {
                 echo "🚀 Starting services: db + backend + frontend..."
                 bat "docker-compose up -d --build"
                 echo "⏳ Waiting 30s for MySQL + Apache to initialize..."
-                bat "timeout /t 30 /nobreak >nul"
+        bat "timeout /t 30 /nobreak >nul"  // Wait 30s for MySQL init + Apache warmup
                 echo "✅ All services running"
             }
         }
