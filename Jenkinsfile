@@ -1,5 +1,5 @@
 // Jenkinsfile — ISG Sousse DevOps Project
-// Unified for all 3 pipelines: PR → dev, push → dev, tag vX.Y.Z
+// ✅ Fixed for Windows Jenkins (no timeout, no syntax errors)
 pipeline {
     agent any
 
@@ -37,30 +37,29 @@ pipeline {
             }
         }
 
-stage('2. Setup') {
-    steps {
-        echo "🔧 Ensuring ports 8081, 8888 are free..."
-        bat '''
-            @echo off
-            echo • Releasing port 8081 (backend)...
-            for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8081 ^| findstr LISTENING') do (
-                echo   Killing PID %%a
-                taskkill /F /PID %%a 2>nul
-            )
+        stage('2. Setup') {
+            steps {
+                echo "🔧 Ensuring ports 8081, 8888 are free..."
+                bat '''
+                    @echo off
+                    echo • Releasing port 8081 (backend)...
+                    for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8081 ^| findstr LISTENING') do (
+                        echo   Killing PID %%a
+                        taskkill /F /PID %%a 2>nul
+                    )
+                    echo • Releasing port 8888 (frontend)...
+                    for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8888 ^| findstr LISTENING') do (
+                        echo   Killing PID %%a
+                        taskkill /F /PID %%a 2>nul
+                    )
+                    echo • Removing leftover containers...
+                    docker rm -f $(docker ps -aq --filter name=todolist-) 2>nul
+                    docker volume prune -f 2>nul
+                '''
+                echo "✅ Setup complete"
+            }
+        }
 
-            echo • Releasing port 8888 (frontend)...
-            for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8888 ^| findstr LISTENING') do (
-                echo   Killing PID %%a
-                taskkill /F /PID %%a 2>nul
-            )
-
-            echo • Removing leftover containers...
-            docker rm -f $(docker ps -aq --filter name=todo-list-pr-pipeline-) 2>nul
-            docker volume prune -f 2>nul
-        '''
-        echo "✅ Setup complete"
-    }
-}
         stage('3. Build') {
             parallel {
                 stage('Backend') {
@@ -78,38 +77,50 @@ stage('2. Setup') {
             }
         }
 
- stage('4. Run (Docker Compose)') {
-    steps {
-        bat 'docker-compose up -d --build'
-        // Wait for DB to be healthy (already handled by depends_on)
-        bat 'timeout /t 20 /nobreak >nul'
-
-        // Get actual host port for backend (e.g., 60123 → 8081)
-        script {
-            def portLine = bat(
-                returnStdout: true,
-                script: 'docker-compose port backend 80'
-            ).trim()
-            env.BACKEND_HOST_PORT = portLine.split(':')[-1]
-            echo "✅ Backend mapped to host port: ${env.BACKEND_HOST_PORT}"
+        stage('4. Run (Docker Compose)') {
+            steps {
+                echo "🚀 Starting services with docker-compose..."
+                bat "docker-compose up -d --build"
+                echo "⏳ Waiting 30 seconds for MySQL + backend to initialize..."
+                // ✅ FIXED: Use Jenkins-native sleep (no shell, no timeout)
+                sleep time: 30, unit: 'SECONDS'
+                echo "✅ Services started"
+            }
         }
-    }
-}
 
-stage('5. Smoke Test') {
-    steps {
-        script {
-            def url = "http://localhost:${env.BACKEND_HOST_PORT}/api.php"
-            echo "🧪 Testing backend at: ${url}"
-            def status = bat(
-                returnStatus: true,
-                script: "@powershell -Command \"try { irm '${url}' -UseBasicParsing; exit 0 } catch { exit 1 }\""
-            )
-            if (status != 0) error "❌ Backend unreachable"
-            echo "✅ Backend smoke test passed"
+        stage('5. Smoke Test') {
+            steps {
+                script {
+                    echo "🧪 Running smoke tests..."
+                    def backendOk = bat(
+                        returnStatus: true,
+                        script: '''
+                            @powershell -Command "try {
+                                $r = irm http://localhost:8081/api.php -UseBasicParsing -ErrorAction Stop
+                                exit ($r.Count -ge 0) ? 0 : 1
+                            } catch { exit 1 }"
+                        '''
+                    ) == 0
+
+                    def frontendOk = bat(
+                        returnStatus: true,
+                        script: '''
+                            @powershell -Command "try {
+                                $r = (Invoke-WebRequest http://localhost:8888 -UseBasicParsing).StatusCode
+                                exit ($r -eq 200) ? 0 : 1
+                            } catch { exit 1 }"
+                        '''
+                    ) == 0
+
+                    echo "✅ Backend: ${backendOk ? 'PASSED' : 'FAILED'} | Frontend: ${frontendOk ? 'PASSED' : 'FAILED'}"
+                    if (!(backendOk && frontendOk)) {
+                        error "❌ Smoke test FAILED"
+                    }
+                    echo "✅ Smoke test PASSED"
+                }
+            }
         }
-    }
-}
+
         stage('6. Archive Artifacts') {
             steps {
                 bat '''
@@ -117,14 +128,11 @@ stage('5. Smoke Test') {
                     mkdir reports 2>nul
                     docker logs todolist-db > reports/db.log 2>nul
                     docker logs todolist-backend > reports/backend.log 2>nul
-                    docker logs todolist-frontend > reports/frontend.log 2>nul
-                    echo Build: %BUILD_NUMBER% > reports/build-info.txt
-                    echo Branch/Tag: %BRANCH_NAME% / %TAG_NAME% >> reports/build-info.txt
-                    echo Smoke test: PASSED > reports/smoke-result.txt
-                    echo Workspace: %cd% >> reports/build-info.txt
+                    echo Build %BUILD_NUMBER% > reports/build-info.txt
+                    echo Passed > reports/smoke-result.txt
                 '''
                 archiveArtifacts artifacts: 'reports/**', fingerprint: true
-                echo "📦 Artifacts archived: ${BUILD_URL}artifact/"
+                echo "📦 Artifacts archived"
             }
         }
     }
@@ -132,11 +140,8 @@ stage('5. Smoke Test') {
     post {
         always {
             echo "🧹 Cleanup: stopping containers..."
-            bat '''
-                @echo off
-                docker-compose down -v --remove-orphans 2>nul
-                echo "✅ Pipeline finished (${currentBuild.result ?: 'SUCCESS'})"
-            '''
+            bat 'docker-compose down -v --remove-orphans 2>nul'
+            echo "✅ Pipeline finished (${currentBuild.result ?: 'SUCCESS'})"
         }
     }
 }
