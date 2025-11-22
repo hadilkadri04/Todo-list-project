@@ -30,8 +30,8 @@ services:
 
   frontend:
     build: ./frontend
-    ports:
-      -    # or 3000, 8888, etc.
+      ports:
+      - "8888:80"          
     container_name: todolist-frontend
     depends_on:
       - backend
