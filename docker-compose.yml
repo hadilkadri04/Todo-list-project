@@ -2,7 +2,7 @@ version: '3.8'
 services:
   db:
     image: mysql:5.7
-    container_name: todolist-db
+
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: todolist
@@ -11,7 +11,7 @@ services:
 
   backend:
     build: ./backend
-    container_name: todolist-backend
+
     depends_on:
       - db
     ports:
@@ -19,8 +19,9 @@ services:
 
   frontend:
     build: ./frontend
-    container_name: todolist-frontend
+
     depends_on:
       - backend
     ports:
       - "8888:80"
+      
