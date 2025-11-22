@@ -36,4 +36,4 @@ services:
       - backend
 
 volumes:
-  mysql_
+  mysql_:   # ✅ Fixed: now a mapping (empty object)
