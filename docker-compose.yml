@@ -1,28 +1,41 @@
-version: '3.8'
-
 services:
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.backend
+  db:
+    image: mysql:8.0
+    container_name: todolist-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass123
+      MYSQL_DATABASE: todolist
+      MYSQL_USER: devops
+      MYSQL_PASSWORD: securepassword
     ports:
-      - "8080:80"
+      - "3306:3306"
     volumes:
-      - ./backend/data:/var/www/html/data  # Pour persister la base SQLite
-    networks:
-      - todo-network
+      - mysql_data:/var/lib/mysql
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.frontend
+  backend:
+    build: ./backend
     ports:
       - "8081:80"
+    container_name: todolist-backend
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: todolist
+      DB_USER: devops
+      DB_PASS: securepassword
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    container_name: todolist-frontend
     depends_on:
       - backend
-    networks:
-      - todo-network
+    restart: unless-stopped
 
-networks:
-  todo-network:
-    driver: bridge
+volumes:
+  mysql_data:

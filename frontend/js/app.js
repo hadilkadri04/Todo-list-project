@@ -1,7 +1,6 @@
-// frontend/js/app.js
-
-// Ajustez cette URL selon l'adresse de votre backend (dans le conteneur ou en local)
-const API_URL = 'http://localhost:8080/api/tasks.php'; // Modifiez si nécessaire (IP du conteneur, port, etc.)
+// frontend/script.js
+// ✅ Backend endpoint (as exposed by docker-compose: backend on port 8081)
+const API_URL = 'http://localhost:8081/api.php';
 
 document.addEventListener('DOMContentLoaded', function () {
     const taskForm = document.getElementById('task-form');
@@ -11,7 +10,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // Charger les tâches au démarrage
     loadTasks();
 
-    // Gestion de l'ajout d'une tâche
     taskForm.addEventListener('submit', function (e) {
         e.preventDefault();
         const taskText = newTaskInput.value.trim();
@@ -21,95 +19,123 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Fonction pour charger les tâches depuis le backend
+    // === API Functions ===
+
     function loadTasks() {
+        taskList.innerHTML = '<p>Chargement...</p>';
         fetch(API_URL)
             .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 return response.json();
             })
             .then(tasks => {
-                taskList.innerHTML = ''; // Effacer la liste actuelle
-                tasks.forEach(task => {
-                    addTaskToDOM(task);
-                });
+                taskList.innerHTML = '';
+                if (tasks.error) {
+                    taskList.innerHTML = `<p class="error">⚠️ ${tasks.error}</p>`;
+                    return;
+                }
+                if (tasks.length === 0) {
+                    taskList.innerHTML = '<p>Aucune tâche.</p>';
+                    return;
+                }
+                tasks.forEach(task => addTaskToDOM(task));
             })
             .catch(error => {
-                console.error('Erreur lors du chargement des tâches:', error);
-                taskList.innerHTML = '<p class="error">Erreur de chargement des tâches.</p>';
+                console.error('❌ Erreur chargement tâches:', error);
+                taskList.innerHTML = `<p class="error">❌ Erreur réseau ou API indisponible.</p>`;
             });
     }
 
-    // Fonction pour ajouter une tâche à l'interface
+    function addTask(title) {
+        fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'created' && data.id) {
+                loadTasks();
+            } else {
+                throw new Error(data.error || 'Réponse inattendue');
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erreur ajout tâche:', error);
+            alert(`Échec ajout : ${error.message}`);
+        });
+    }
+
+    function toggleTask(id, isDone) {
+        fetch(API_URL, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, done: !isDone })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'updated') {
+                loadTasks();
+            } else {
+                throw new Error(data.error || 'Mise à jour échouée');
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erreur toggle tâche:', error);
+            alert(`Échec mise à jour : ${error.message}`);
+        });
+    }
+
+    function deleteTask(id) {
+        fetch(`${API_URL}?id=${id}`, { method: 'DELETE' })
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'deleted') {
+                loadTasks();
+            } else {
+                throw new Error(data.error || 'Suppression échouée');
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erreur suppression tâche:', error);
+            alert(`Échec suppression : ${error.message}`);
+        });
+    }
+
+    // === DOM Functions ===
+
     function addTaskToDOM(task) {
         const div = document.createElement('div');
-        div.className = `task ${task.completed ? 'completed' : ''}`;
-        div.dataset.id = task.id; // Stocker l'ID dans un attribut data
+        div.className = `task ${task.done ? 'completed' : ''}`;
         div.innerHTML = `
-            <span>${task.title}</span>
+            <span>${escapeHtml(task.title)}</span>
             <div class="task-actions">
-                <button class="toggle-btn" onclick="toggleTask(${task.id}, ${task.completed})">${task.completed ? 'Undo' : 'Done'}</button>
-                <button class="delete-btn" onclick="deleteTask(${task.id})">Delete</button>
+                <button class="btn-toggle" onclick="toggleTask(${task.id}, ${task.done})">
+                    ${task.done ? '↩️ Annuler' : '✅ Terminer'}
+                </button>
+                <button class="btn-delete" onclick="deleteTask(${task.id})">🗑️ Supprimer</button>
             </div>
         `;
         taskList.appendChild(div);
     }
 
-    // Fonction pour envoyer une tâche au backend
-    function addTask(title) {
-        fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: title })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                loadTasks(); // Recharger la liste après ajout
-            } else {
-                console.error('Erreur backend:', data.error || 'Unknown error');
-            }
-        })
-        .catch(error => {
-            console.error('Erreur réseau:', error);
-        });
+    // 🔒 Sécurité : échapper le HTML (évite XSS basique)
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
-    // Fonction globale pour marquer une tâche comme faite/non-faite
-    window.toggleTask = function (id, isCompleted) {
-        fetch(API_URL, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id, completed: !isCompleted })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                loadTasks(); // Recharger la liste après modification
-            } else {
-                console.error('Erreur backend:', data.error || 'Unknown error');
-            }
-        })
-        .catch(error => {
-            console.error('Erreur réseau:', error);
-        });
-    };
-
-    // Fonction globale pour supprimer une tâche
-    window.deleteTask = function (id) {
-        fetch(`${API_URL}?id=${id}`, { method: 'DELETE' })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                loadTasks(); // Recharger la liste après suppression
-            } else {
-                console.error('Erreur backend:', data.error || 'Unknown error');
-            }
-        })
-        .catch(error => {
-            console.error('Erreur réseau:', error);
-        });
-    };
+    // ✅ Exposer les fonctions globalement (nécessaire pour onclick inline)
+    window.toggleTask = toggleTask;
+    window.deleteTask = deleteTask;
 });

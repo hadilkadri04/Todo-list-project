@@ -1,17 +1,16 @@
-# backend/Dockerfile.backend
+# --- BUILD (optional, but clean) ---
+FROM php:8.2-cli AS builder
+WORKDIR /app
 
-FROM php:8.1-cli
-
+# --- PRODUCTION ---
+FROM php:8.2-apache
 WORKDIR /var/www/html
 
+# ✅ Install MySQL extension
+RUN docker-php-ext-install pdo pdo_mysql
+
+# Copy app
 COPY . .
 
-# Installer SQLite3 et l'extension PDO SQLite
-RUN apt-get update && \
-    apt-get install -y sqlite3 && \
-    docker-php-ext-install pdo_sqlite
-
 EXPOSE 80
-
-# Démarrer le serveur PHP interne
-CMD ["php", "-S", "0.0.0.0:80", "-t", "."]
+CMD ["apache2-foreground"]
