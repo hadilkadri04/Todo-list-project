@@ -18,18 +18,14 @@ pipeline {
 
         stage('Setup') {
             steps {
-                echo "🔧 Setting up environment..."
-                bat '''
-                    @echo off
-                    echo Stopping and removing old containers...
-                    docker ps -q --filter name=todolist- | findstr . >nul && (
-                        for /f "tokens=*" %i in ('docker ps -q --filter name=todolist-') do docker stop %i 2>nul && docker rm %i 2>nul
-                    ) || echo No old containers found.
+                @echo off
+                echo Stopping and removing old containers...
+                docker ps -q --filter name=todolist- | findstr . >nul && (
+                for /f "tokens=*" %%i in ('docker ps -q --filter name=todolist-') do docker stop %%i 2>nul && docker rm %%i 2>nul
+                ) || echo No old containers found.
 
-                    echo Pruning dangling volumes...
-                    docker volume prune -f 2>nul
-                '''
-                echo "✅ Setup complete"
+                echo Pruning dangling volumes...
+                docker volume prune -f 2>nul
             }
         }
 
