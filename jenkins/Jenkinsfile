@@ -1,86 +1,132 @@
-// jenkins/Jenkinsfile
-
+// Jenkinsfile — Windows-compatible, aligned with your dev setup
 pipeline {
     agent any
+
+    environment {
+        BUILD_TAG = "build-${env.BUILD_NUMBER}"
+        BACKEND_PORT = "8081"
+        FRONTEND_PORT = "8888"
+    }
 
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
+                echo "✅ Code checked out from branch: ${env.BRANCH_NAME}"
             }
         }
+
         stage('Setup') {
             steps {
-                echo 'Setup environment...'
-                sh 'echo "Environment ready"'
+                echo "🔧 Setting up environment..."
+                bat '''
+                    @echo off
+                    echo Stopping and removing old containers...
+                    docker ps -q --filter name=todolist- | findstr . >nul && (
+                        for /f "tokens=*" %i in ('docker ps -q --filter name=todolist-') do docker stop %i 2>nul && docker rm %i 2>nul
+                    ) || echo No old containers found.
+
+                    echo Pruning dangling volumes...
+                    docker volume prune -f 2>nul
+                '''
+                echo "✅ Setup complete"
             }
         }
+
         stage('Build') {
-            parallel { // Exécution parallèle des builds
+            parallel {
                 stage('Build Backend') {
                     steps {
-                        // Utiliser le numéro de build pour nommer l'image
-                        sh 'docker build -f backend/Dockerfile.backend -t todo-backend:${env.BUILD_NUMBER} .'
+                        echo "🏗️ Building backend (PHP + MySQL)..."
+                        bat "docker build -t todolist-backend:${env.BUILD_TAG} ./backend"
                     }
                 }
                 stage('Build Frontend') {
                     steps {
-                        sh 'docker build -f frontend/Dockerfile.frontend -t todo-frontend:${env.BUILD_NUMBER} .'
+                        echo "🏗️ Building frontend (Nginx)..."
+                        bat "docker build -t todolist-frontend:${env.BUILD_TAG} ./frontend"
                     }
                 }
             }
         }
-        stage('Run') {
+
+        stage('Run (Docker Compose)') {
             steps {
-                // Lancer les conteneurs avec des noms uniques basés sur le build
-                sh 'docker run -d --name todo-backend-container-${env.BUILD_NUMBER} -p 8080:80 todo-backend:${env.BUILD_NUMBER}'
-                sh 'sleep 10' // Attendre que le conteneur démarre
-                sh 'docker run -d --name todo-frontend-container-${env.BUILD_NUMBER} -p 8081:80 todo-frontend:${env.BUILD_NUMBER}'
-                sh 'sleep 10'
+                echo "🚀 Starting services with docker-compose (DB + backend + frontend)..."
+                bat "docker-compose up -d --build"
+                bat "timeout /t 20 /nobreak >nul"  // Wait 20s for MySQL init
+                echo "✅ Containers running"
             }
         }
+
         stage('Smoke Test') {
             steps {
-                sh '''
-                    echo "Running smoke tests..."
+                script {
+                    echo "🧪 Running smoke tests..."
 
-                    # Tester le backend
-                    BACKEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/)
-                    if [ $BACKEND_STATUS -eq 200 ]; then
-                      echo "✅ Backend OK (Status: $BACKEND_STATUS)"
-                    else
-                      echo "❌ Backend KO (Status: $BACKEND_STATUS)"
-                      exit 1
-                    fi
+                    // Test 1: Backend API reachable?
+                    def backendUp = bat(
+                        script: '''
+                            @powershell -Command "try { $r = Invoke-RestMethod http://localhost:8081/api.php -UseBasicParsing; if ($r.Count -ge 0) { exit 0 } else { exit 1 } } catch { exit 1 }"
+                        ''',
+                        returnStatus: true
+                    ) == 0
 
-                    # Tester le frontend
-                    FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/)
-                    if [ $FRONTEND_STATUS -eq 200 ]; then
-                      echo "✅ Frontend OK (Status: $FRONTEND_STATUS)"
-                    else
-                      echo "❌ Frontend KO (Status: $FRONTEND_STATUS)"
-                      exit 1
-                    fi
+                    // Test 2: Frontend UI reachable?
+                    def frontendUp = bat(
+                        script: '''
+                            @powershell -Command "try { $r = (Invoke-WebRequest http://localhost:8888).StatusCode; if ($r -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }"
+                        ''',
+                        returnStatus: true
+                    ) == 0
 
-                    echo "All smoke tests passed!"
-                '''
+                    // Test 3: Can add a task? (CRUD smoke)
+                    def taskAdded = bat(
+                        script: '''
+                            @powershell -Command "try {
+                                $body = @{title='[CI] Smoke Test'} | ConvertTo-Json
+                                $resp = irm -Uri http://localhost:8081/api.php -Method Post -Body $body -ContentType 'application/json' -UseBasicParsing
+                                if ($resp.status -eq 'created') { exit 0 } else { exit 1 }
+                            } catch { exit 1 }"
+                        ''',
+                        returnStatus: true
+                    ) == 0
+
+                    echo "Backend: ${backendUp ? '✅' : '❌'} | Frontend: ${frontendUp ? '✅' : '❌'} | CRUD: ${taskAdded ? '✅' : '❌'}"
+
+                    if (!(backendUp && frontendUp && taskAdded)) {
+                        error "❌ Smoke test failed"
+                    }
+                    echo "✅ All smoke tests passed"
+                }
             }
         }
+
         stage('Archive Artifacts') {
             steps {
-                // Archiver des logs ou rapports de test
-                sh 'mkdir -p logs && echo "Build logs for build ${env.BUILD_NUMBER}" > logs/build-${env.BUILD_NUMBER}.log'
-                archiveArtifacts artifacts: 'logs/**', fingerprint: true
+                bat '''
+                    @echo off
+                    mkdir reports 2>nul
+                    docker logs todolist-db > reports/db.log 2>nul
+                    docker logs todolist-backend > reports/backend.log 2>nul
+                    docker logs todolist-frontend > reports/frontend.log 2>nul
+                    echo Build: %BUILD_NUMBER% (%DATE% %TIME%) > reports/build-info.txt
+                    echo "Smoke test passed" > reports/smoke-result.txt
+                '''
+                archiveArtifacts artifacts: 'reports/**', fingerprint: true
+                echo "📦 Artifacts archived"
             }
         }
     }
+
     post {
         always {
-            // S'assurer que les conteneurs sont arrêtés et supprimés après le pipeline
-            sh 'docker stop todo-backend-container-${env.BUILD_NUMBER} || true'
-            sh 'docker stop todo-frontend-container-${env.BUILD_NUMBER} || true'
-            sh 'docker rm todo-backend-container-${env.BUILD_NUMBER} || true'
-            sh 'docker rm todo-frontend-container-${env.BUILD_NUMBER} || true'
+            echo "🧹 Cleanup: stopping containers..."
+            bat '''
+                @echo off
+                docker-compose down -v --remove-orphans 2>nul
+                echo "✅ Pipeline finished"
+            '''
         }
     }
 }
