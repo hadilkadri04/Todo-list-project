@@ -43,15 +43,15 @@ stage('2. Setup') {
         bat '''
             @echo off
             echo • Releasing port 8081 (backend)...
-            for /f "tokens=5" %a in ('netstat -ano ^| findstr :8081 ^| findstr LISTENING') do (
-                echo   Killing PID %a
-                taskkill /F /PID %a 2>nul
+            for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8081 ^| findstr LISTENING') do (
+                echo   Killing PID %%a
+                taskkill /F /PID %%a 2>nul
             )
 
             echo • Releasing port 8888 (frontend)...
-            for /f "tokens=5" %a in ('netstat -ano ^| findstr :8888 ^| findstr LISTENING') do (
-                echo   Killing PID %a
-                taskkill /F /PID %a 2>nul
+            for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8888 ^| findstr LISTENING') do (
+                echo   Killing PID %%a
+                taskkill /F /PID %%a 2>nul
             )
 
             echo • Removing leftover containers...
@@ -61,7 +61,6 @@ stage('2. Setup') {
         echo "✅ Setup complete"
     }
 }
-
         stage('3. Build') {
             parallel {
                 stage('Backend') {
