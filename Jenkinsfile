@@ -88,38 +88,69 @@ pipeline {
             }
         }
 
-        stage('5. Smoke Test') {
-            steps {
-                script {
-                    echo "🧪 Running smoke tests..."
-                    def backendOk = bat(
-                        returnStatus: true,
-                        script: '''
-                            @powershell -Command "try {
-                                $r = irm http://localhost:8081/api.php -UseBasicParsing -ErrorAction Stop
-                                exit ($r.Count -ge 0) ? 0 : 1
-                            } catch { exit 1 }"
-                        '''
-                    ) == 0
+       stage('5. Smoke Test') {
+    steps {
+        script {
+            echo "🧪 Running smoke tests..."
 
-                    def frontendOk = bat(
-                        returnStatus: true,
-                        script: '''
-                            @powershell -Command "try {
-                                $r = (Invoke-WebRequest http://localhost:8888 -UseBasicParsing).StatusCode
-                                exit ($r -eq 200) ? 0 : 1
-                            } catch { exit 1 }"
-                        '''
-                    ) == 0
-
-                    echo "✅ Backend: ${backendOk ? 'PASSED' : 'FAILED'} | Frontend: ${frontendOk ? 'PASSED' : 'FAILED'}"
-                    if (!(backendOk && frontendOk)) {
-                        error "❌ Smoke test FAILED"
-                    }
-                    echo "✅ Smoke test PASSED"
+            // Test 1: Backend API (GET)
+            def backendOk = false
+            for (int i = 0; i < 6 && !backendOk; i++) {
+                def status = bat(
+                    returnStatus: true,
+                    script: '''
+                        @powershell -Command "try {
+                            $r = Invoke-RestMethod 'http://localhost:8081/api.php' -UseBasicParsing -ErrorAction Stop
+                            if ($r.Count -ge 0) { exit 0 } else { exit 1 }
+                        } catch { exit 1 }"
+                    '''
+                )
+                backendOk = (status == 0)
+                if (!backendOk && i < 5) {
+                    echo "⏳ Backend not ready (attempt ${i+1}/6)..."
+                    sleep time: 5, unit: 'SECONDS'
                 }
             }
+
+            // Test 2: Frontend UI (HTTP 200)
+            def frontendOk = bat(
+                returnStatus: true,
+                script: '''
+                    @powershell -Command "try {
+                        $r = (Invoke-WebRequest 'http://localhost:8888' -UseBasicParsing).StatusCode
+                        if ($r -eq 200) { exit 0 } else { exit 1 }
+                    } catch { exit 1 }"
+                '''
+            ) == 0
+
+            // Test 3: CRUD (POST)
+            def crudOk = false
+            if (backendOk) {
+                def status = bat(
+                    returnStatus: true,
+                    script: '''
+                        @powershell -Command "try {
+                            $body = @{title='[CI] Smoke Test'} | ConvertTo-Json
+                            $resp = Invoke-RestMethod 'http://localhost:8081/api.php' -Method Post -Body $body -ContentType 'application/json' -UseBasicParsing
+                            if ($resp.status -eq 'created') { exit 0 } else { exit 1 }
+                        } catch { exit 1 }"
+                    '''
+                )
+                crudOk = (status == 0)
+            }
+
+            echo "✅ Backend: ${backendOk ? 'PASSED' : 'FAILED'}"
+            echo "✅ Frontend: ${frontendOk ? 'PASSED' : 'FAILED'}"
+            echo "✅ CRUD: ${crudOk ? 'PASSED' : 'FAILED'}"
+
+            if (!(backendOk && frontendOk && crudOk)) {
+                currentBuild.result = 'FAILURE'
+                error "❌ Smoke test FAILED"
+            }
+            echo "🎉 All smoke tests PASSED"
         }
+    }
+}
 
         stage('6. Archive Artifacts') {
             steps {
