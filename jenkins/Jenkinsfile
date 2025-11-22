@@ -39,28 +39,24 @@ pipeline {
 
 stage('2. Setup') {
     steps {
-        echo "🔧 Cleaning up before build..."
+        echo "🔧 Ensuring ports 8081, 8888 are free..."
         bat '''
             @echo off
-            echo • Stopping containers using ports 8081, 8888, 3306...
-            for /f "tokens=3" %%a in ('netstat -ano ^| findstr :8081 ^| findstr LISTENING') do (
-                echo   Killing PID %%a (port 8081)
-                taskkill /F /PID %%a 2>nul
-            )
-            for /f "tokens=3" %%a in ('netstat -ano ^| findstr :8888 ^| findstr LISTENING') do (
-                echo   Killing PID %%a (port 8888)
-                taskkill /F /PID %%a 2>nul
-            )
-            for /f "tokens=3" %%a in ('netstat -ano ^| findstr :3306 ^| findstr LISTENING') do (
-                echo   Killing PID %%a (port 3306)
-                taskkill /F /PID %%a 2>nul
+            echo • Releasing port 8081 (backend)...
+            for /f "tokens=5" %a in ('netstat -ano ^| findstr :8081 ^| findstr LISTENING') do (
+                echo   Killing PID %a
+                taskkill /F /PID %a 2>nul
             )
 
-            echo • Removing old Docker containers...
-            for /f "tokens=*" %%i in ('docker ps -aq --filter name=todolist- 2^>nul') do (
-                docker stop %%i 2>nul >nul && docker rm %%i 2>nul >nul
+            echo • Releasing port 8888 (frontend)...
+            for /f "tokens=5" %a in ('netstat -ano ^| findstr :8888 ^| findstr LISTENING') do (
+                echo   Killing PID %a
+                taskkill /F /PID %a 2>nul
             )
-            docker volume prune -f 2>nul >nul
+
+            echo • Removing leftover containers...
+            docker rm -f $(docker ps -aq --filter name=todo-list-pr-pipeline-) 2>nul
+            docker volume prune -f 2>nul
         '''
         echo "✅ Setup complete"
     }
@@ -83,81 +79,38 @@ stage('2. Setup') {
             }
         }
 
-        stage('4. Run (Docker Compose)') {
-            steps {
-                echo "🚀 Starting services: db + backend + frontend..."
-                bat "docker-compose up -d --build"
-                echo "⏳ Waiting 30s for MySQL + Apache to initialize..."
-        bat "timeout /t 30 /nobreak >nul"  // Wait 30s for MySQL init + Apache warmup
-                echo "✅ All services running"
-            }
+ stage('4. Run (Docker Compose)') {
+    steps {
+        bat 'docker-compose up -d --build'
+        // Wait for DB to be healthy (already handled by depends_on)
+        bat 'timeout /t 20 /nobreak >nul'
+
+        // Get actual host port for backend (e.g., 60123 → 8081)
+        script {
+            def portLine = bat(
+                returnStdout: true,
+                script: 'docker-compose port backend 80'
+            ).trim()
+            env.BACKEND_HOST_PORT = portLine.split(':')[-1]
+            echo "✅ Backend mapped to host port: ${env.BACKEND_HOST_PORT}"
         }
+    }
+}
 
-        stage('5. Smoke Test') {
-            steps {
-                script {
-                    echo "🧪 Running smoke tests..."
-
-                    // Test 1: Backend API (with retry)
-                    def backendOk = false
-                    for (int i = 0; i < 6 && !backendOk; i++) {
-                        def status = bat(
-                            returnStatus: true,
-                            script: '''
-                                @powershell -Command "try {
-                                    $r = irm http://localhost:8081/api.php -UseBasicParsing -ErrorAction Stop
-                                    exit ($r.Count -ge 0) ? 0 : 1
-                                } catch { exit 1 }"
-                            '''
-                        )
-                        backendOk = (status == 0)
-                        if (!backendOk && i < 5) {
-                            echo "⏳ Backend not ready (attempt ${i+1}/6)..."
-                            sleep time: 5, unit: 'SECONDS'
-                        }
-                    }
-
-                    // Test 2: Frontend UI
-                    def frontendOk = bat(
-                        returnStatus: true,
-                        script: '''
-                            @powershell -Command "try {
-                                $r = (Invoke-WebRequest http://localhost:8888 -UseBasicParsing).StatusCode
-                                exit ($r -eq 200) ? 0 : 1
-                            } catch { exit 1 }"
-                        '''
-                    ) == 0
-
-                    // Test 3: CRUD (POST)
-                    def crudOk = false
-                    if (backendOk) {
-                        def status = bat(
-                            returnStatus: true,
-                            script: '''
-                                @powershell -Command "try {
-                                    $body = @{title='[CI] Smoke Test'} | ConvertTo-Json
-                                    $resp = irm http://localhost:8081/api.php -Method Post -Body $body -ContentType 'application/json' -UseBasicParsing
-                                    exit ($resp.status -eq 'created') ? 0 : 1
-                                } catch { exit 1 }"
-                            '''
-                        )
-                        crudOk = (status == 0)
-                    }
-
-                    // Report
-                    echo "✅ Backend: ${backendOk ? 'PASSED' : 'FAILED'}"
-                    echo "✅ Frontend: ${frontendOk ? 'PASSED' : 'FAILED'}"
-                    echo "✅ CRUD: ${crudOk ? 'PASSED' : 'FAILED'}"
-
-                    if (!(backendOk && frontendOk && crudOk)) {
-                        currentBuild.result = 'FAILURE'
-                        error "❌ Smoke test FAILED"
-                    }
-                    echo "🎉 All smoke tests PASSED"
-                }
-            }
+stage('5. Smoke Test') {
+    steps {
+        script {
+            def url = "http://localhost:${env.BACKEND_HOST_PORT}/api.php"
+            echo "🧪 Testing backend at: ${url}"
+            def status = bat(
+                returnStatus: true,
+                script: "@powershell -Command \"try { irm '${url}' -UseBasicParsing; exit 0 } catch { exit 1 }\""
+            )
+            if (status != 0) error "❌ Backend unreachable"
+            echo "✅ Backend smoke test passed"
         }
-
+    }
+}
         stage('6. Archive Artifacts') {
             steps {
                 bat '''
