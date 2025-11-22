@@ -30,8 +30,8 @@ services:
 
   frontend:
     build: ./frontend
-      ports:
-      - "8888:80"          
+    ports:                 # ✅ 2 spaces (same level as 'build')
+      - "8888:80"          # ✅ 4 spaces (2 more than 'ports')
     container_name: todolist-frontend
     depends_on:
       - backend
