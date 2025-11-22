@@ -1,4 +1,4 @@
-// Jenkinsfile — Windows-compatible, aligned with your dev setup
+// Jenkinsfile — Windows-compatible
 pipeline {
     agent any
 
@@ -18,14 +18,16 @@ pipeline {
 
         stage('Setup') {
             steps {
-                @echo off
-                echo Stopping and removing old containers...
-                docker ps -q --filter name=todolist- | findstr . >nul && (
-                for /f "tokens=*" %%i in ('docker ps -q --filter name=todolist-') do docker stop %%i 2>nul && docker rm %%i 2>nul
-                ) || echo No old containers found.
+                bat '''
+                    @echo off
+                    echo Stopping and removing old containers...
+                    docker ps -q --filter name=todolist- | findstr . >nul && (
+                        for /f "tokens=*" %%i in ('docker ps -q --filter name=todolist-') do docker stop %%i 2>nul && docker rm %%i 2>nul
+                    ) || echo No old containers found.
 
-                echo Pruning dangling volumes...
-                docker volume prune -f 2>nul
+                    echo Pruning dangling volumes...
+                    docker volume prune -f -a 2>nul
+                '''
             }
         }
 
@@ -48,9 +50,9 @@ pipeline {
 
         stage('Run (Docker Compose)') {
             steps {
-                echo "🚀 Starting services with docker-compose (DB + backend + frontend)..."
+                echo "🚀 Starting services with docker-compose..."
                 bat "docker-compose up -d --build"
-                bat "timeout /t 20 /nobreak >nul"  // Wait 20s for MySQL init
+                bat "timeout /t 20 /nobreak >nul"
                 echo "✅ Containers running"
             }
         }
@@ -60,7 +62,6 @@ pipeline {
                 script {
                     echo "🧪 Running smoke tests..."
 
-                    // Test 1: Backend API reachable?
                     def backendUp = bat(
                         script: '''
                             @powershell -Command "try { $r = Invoke-RestMethod http://localhost:8081/api.php -UseBasicParsing; if ($r.Count -ge 0) { exit 0 } else { exit 1 } } catch { exit 1 }"
@@ -68,7 +69,6 @@ pipeline {
                         returnStatus: true
                     ) == 0
 
-                    // Test 2: Frontend UI reachable?
                     def frontendUp = bat(
                         script: '''
                             @powershell -Command "try { $r = (Invoke-WebRequest http://localhost:8888).StatusCode; if ($r -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }"
@@ -76,7 +76,6 @@ pipeline {
                         returnStatus: true
                     ) == 0
 
-                    // Test 3: Can add a task? (CRUD smoke)
                     def taskAdded = bat(
                         script: '''
                             @powershell -Command "try {
@@ -93,6 +92,7 @@ pipeline {
                     if (!(backendUp && frontendUp && taskAdded)) {
                         error "❌ Smoke test failed"
                     }
+
                     echo "✅ All smoke tests passed"
                 }
             }
@@ -107,7 +107,7 @@ pipeline {
                     docker logs todolist-backend > reports/backend.log 2>nul
                     docker logs todolist-frontend > reports/frontend.log 2>nul
                     echo Build: %BUILD_NUMBER% (%DATE% %TIME%) > reports/build-info.txt
-                    echo "Smoke test passed" > reports/smoke-result.txt
+                    echo Smoke test passed > reports/smoke-result.txt
                 '''
                 archiveArtifacts artifacts: 'reports/**', fingerprint: true
                 echo "📦 Artifacts archived"
@@ -121,7 +121,7 @@ pipeline {
             bat '''
                 @echo off
                 docker-compose down -v --remove-orphans 2>nul
-                echo "✅ Pipeline finished"
+                echo ✅ Pipeline finished
             '''
         }
     }
