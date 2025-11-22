@@ -1,3 +1,4 @@
+# docker-compose.yml — CI-ready, no port conflicts, valid volumes
 services:
   db:
     image: mysql:8.0
@@ -7,7 +8,7 @@ services:
       MYSQL_USER: devops
       MYSQL_PASSWORD: securepassword
     volumes:
-      - mysql_/var/lib/mysql
+      - mysql_data:/var/lib/mysql   # ✅ named volume
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "devops", "-psecurepassword"]
       interval: 5s
@@ -17,7 +18,7 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8081:80"   # Keep this — needed for smoke test
+      - "8081:80"
     depends_on:
       db:
         condition: service_healthy
@@ -36,4 +37,4 @@ services:
       - backend
 
 volumes:
-  mysql_:   # ✅ Fixed: now a mapping (empty object)
+  mysql_data:   # ✅ top-level declaration (empty = use default driver)
