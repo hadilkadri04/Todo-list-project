@@ -49,13 +49,18 @@ pipeline {
         }
 
         stage('Run (Docker Compose)') {
-            steps {
-                echo "🚀 Starting services with docker-compose..."
-                bat "docker-compose up -d --build"
-                bat "timeout /t 20 /nobreak >nul"
-                echo "✅ Containers running"
-            }
-        }
+    steps {
+        echo "🚀 Starting services with docker-compose..."
+        bat '''
+            @echo off
+            docker-compose down -v --remove-orphans 2>nul
+            docker-compose up -d --build
+        '''
+        echo "⏳ Waiting for services to initialize..."
+        bat "timeout /t 20 /nobreak >nul"
+        echo "✅ Containers running"
+    }
+}
 
         stage('Smoke Test') {
             steps {

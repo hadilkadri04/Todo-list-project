@@ -1,41 +1,26 @@
+version: '3.8'
 services:
   db:
-    image: mysql:8.0
+    image: mysql:5.7
     container_name: todolist-db
-    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass123
+      MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: todolist
-      MYSQL_USER: devops
-      MYSQL_PASSWORD: securepassword
     ports:
       - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
 
   backend:
     build: ./backend
-    ports:
-      - "8081:80"
     container_name: todolist-backend
     depends_on:
       - db
-    environment:
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_NAME: todolist
-      DB_USER: devops
-      DB_PASS: securepassword
-    restart: unless-stopped
+    ports:
+      - "8081:80"
 
   frontend:
     build: ./frontend
-    ports:                 # ✅ 2 spaces (same level as 'build')
-      - "8888:80"          # ✅ 4 spaces (2 more than 'ports')
     container_name: todolist-frontend
     depends_on:
       - backend
-    restart: unless-stopped
-
-volumes:
-  mysql_data:
+    ports:
+      - "8888:80"
