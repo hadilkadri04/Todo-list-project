@@ -1,45 +1,64 @@
-// Jenkinsfile — Windows-compatible
+// Jenkinsfile — ISG Sousse DevOps Project
+// Unified for all 3 pipelines: PR → dev, push → dev, tag vX.Y.Z
 pipeline {
     agent any
 
     environment {
-        BUILD_TAG = "build-${env.BUILD_NUMBER}"
+        BUILD_TAG = "build-${BUILD_NUMBER}"
         BACKEND_PORT = "8081"
         FRONTEND_PORT = "8888"
     }
 
     stages {
-        stage('Checkout') {
+        stage('Start') {
             steps {
-                checkout scm
-                echo "✅ Code checked out from branch: ${env.BRANCH_NAME}"
+                script {
+                    if (env.CHANGE_ID) {
+                        echo "🚀 Pipeline 1: Build & Smoke sur PR #${env.CHANGE_ID}"
+                    } else if (env.TAG_NAME) {
+                        echo "📦 Pipeline 3: Build versionné (tag ${env.TAG_NAME})"
+                    } else {
+                        echo "✅ Pipeline 2: Build complet sur push (branche ${env.BRANCH_NAME ?: 'unknown'})"
+                    }
+                }
             }
         }
 
-        stage('Setup') {
+        stage('1. Checkout') {
+            steps {
+                checkout scm
+                script {
+                    def commit = bat(
+                        returnStdout: true,
+                        script: 'git rev-parse --short HEAD 2>nul || echo UNKNOWN'
+                    ).trim()
+                    echo "✅ Checked out commit: ${commit}"
+                }
+            }
+        }
+
+        stage('2. Setup') {
             steps {
                 bat '''
                     @echo off
-                    echo Stopping and removing old containers...
-                    docker ps -q --filter name=todolist- | findstr . >nul && (
-                        for /f "tokens=*" %%i in ('docker ps -q --filter name=todolist-') do docker stop %%i 2>nul && docker rm %%i 2>nul
-                    ) || echo No old containers found.
-
-                    echo Pruning dangling volumes...
-                    docker volume prune -f -a 2>nul
+                    echo 🔧 Cleaning old containers...
+                    for /f "tokens=*" %%i in ('docker ps -q --filter name=todolist- 2^>nul') do (
+                        docker stop %%i 2>nul && docker rm %%i 2>nul
+                    )
+                    docker volume prune -f 2>nul
                 '''
             }
         }
 
-        stage('Build') {
+        stage('3. Build') {
             parallel {
-                stage('Build Backend') {
+                stage('Backend') {
                     steps {
                         echo "🏗️ Building backend (PHP + MySQL)..."
                         bat "docker build -t todolist-backend:${env.BUILD_TAG} ./backend"
                     }
                 }
-                stage('Build Frontend') {
+                stage('Frontend') {
                     steps {
                         echo "🏗️ Building frontend (Nginx)..."
                         bat "docker build -t todolist-frontend:${env.BUILD_TAG} ./frontend"
@@ -48,62 +67,82 @@ pipeline {
             }
         }
 
-        stage('Run (Docker Compose)') {
-    steps {
-        echo "🚀 Starting services with docker-compose..."
-        bat '''
-            @echo off
-            docker-compose down -v --remove-orphans 2>nul
-            docker-compose up -d --build
-        '''
-        echo "⏳ Waiting for services to initialize..."
-        bat "timeout /t 20 /nobreak >nul"
-        echo "✅ Containers running"
-    }
-}
+        stage('4. Run (Docker Compose)') {
+            steps {
+                echo "🚀 Starting services: db + backend + frontend..."
+                bat "docker-compose up -d --build"
+                echo "⏳ Waiting 30s for MySQL + Apache to initialize..."
+                bat "timeout /t 30 /nobreak >nul"
+                echo "✅ All services running"
+            }
+        }
 
-        stage('Smoke Test') {
+        stage('5. Smoke Test') {
             steps {
                 script {
                     echo "🧪 Running smoke tests..."
 
-                    def backendUp = bat(
-                        script: '''
-                            @powershell -Command "try { $r = Invoke-RestMethod http://localhost:8081/api.php -UseBasicParsing; if ($r.Count -ge 0) { exit 0 } else { exit 1 } } catch { exit 1 }"
-                        ''',
-                        returnStatus: true
-                    ) == 0
-
-                    def frontendUp = bat(
-                        script: '''
-                            @powershell -Command "try { $r = (Invoke-WebRequest http://localhost:8888).StatusCode; if ($r -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }"
-                        ''',
-                        returnStatus: true
-                    ) == 0
-
-                    def taskAdded = bat(
-                        script: '''
-                            @powershell -Command "try {
-                                $body = @{title='[CI] Smoke Test'} | ConvertTo-Json
-                                $resp = irm -Uri http://localhost:8081/api.php -Method Post -Body $body -ContentType 'application/json' -UseBasicParsing
-                                if ($resp.status -eq 'created') { exit 0 } else { exit 1 }
-                            } catch { exit 1 }"
-                        ''',
-                        returnStatus: true
-                    ) == 0
-
-                    echo "Backend: ${backendUp ? '✅' : '❌'} | Frontend: ${frontendUp ? '✅' : '❌'} | CRUD: ${taskAdded ? '✅' : '❌'}"
-
-                    if (!(backendUp && frontendUp && taskAdded)) {
-                        error "❌ Smoke test failed"
+                    // Test 1: Backend API (with retry)
+                    def backendOk = false
+                    for (int i = 0; i < 6 && !backendOk; i++) {
+                        def status = bat(
+                            returnStatus: true,
+                            script: '''
+                                @powershell -Command "try {
+                                    $r = irm http://localhost:8081/api.php -UseBasicParsing -ErrorAction Stop
+                                    exit ($r.Count -ge 0) ? 0 : 1
+                                } catch { exit 1 }"
+                            '''
+                        )
+                        backendOk = (status == 0)
+                        if (!backendOk && i < 5) {
+                            echo "⏳ Backend not ready (attempt ${i+1}/6)..."
+                            sleep time: 5, unit: 'SECONDS'
+                        }
                     }
 
-                    echo "✅ All smoke tests passed"
+                    // Test 2: Frontend UI
+                    def frontendOk = bat(
+                        returnStatus: true,
+                        script: '''
+                            @powershell -Command "try {
+                                $r = (Invoke-WebRequest http://localhost:8888 -UseBasicParsing).StatusCode
+                                exit ($r -eq 200) ? 0 : 1
+                            } catch { exit 1 }"
+                        '''
+                    ) == 0
+
+                    // Test 3: CRUD (POST)
+                    def crudOk = false
+                    if (backendOk) {
+                        def status = bat(
+                            returnStatus: true,
+                            script: '''
+                                @powershell -Command "try {
+                                    $body = @{title='[CI] Smoke Test'} | ConvertTo-Json
+                                    $resp = irm http://localhost:8081/api.php -Method Post -Body $body -ContentType 'application/json' -UseBasicParsing
+                                    exit ($resp.status -eq 'created') ? 0 : 1
+                                } catch { exit 1 }"
+                            '''
+                        )
+                        crudOk = (status == 0)
+                    }
+
+                    // Report
+                    echo "✅ Backend: ${backendOk ? 'PASSED' : 'FAILED'}"
+                    echo "✅ Frontend: ${frontendOk ? 'PASSED' : 'FAILED'}"
+                    echo "✅ CRUD: ${crudOk ? 'PASSED' : 'FAILED'}"
+
+                    if (!(backendOk && frontendOk && crudOk)) {
+                        currentBuild.result = 'FAILURE'
+                        error "❌ Smoke test FAILED"
+                    }
+                    echo "🎉 All smoke tests PASSED"
                 }
             }
         }
 
-        stage('Archive Artifacts') {
+        stage('6. Archive Artifacts') {
             steps {
                 bat '''
                     @echo off
@@ -111,11 +150,13 @@ pipeline {
                     docker logs todolist-db > reports/db.log 2>nul
                     docker logs todolist-backend > reports/backend.log 2>nul
                     docker logs todolist-frontend > reports/frontend.log 2>nul
-                    echo Build: %BUILD_NUMBER% (%DATE% %TIME%) > reports/build-info.txt
-                    echo Smoke test passed > reports/smoke-result.txt
+                    echo Build: %BUILD_NUMBER% > reports/build-info.txt
+                    echo Branch/Tag: %BRANCH_NAME% / %TAG_NAME% >> reports/build-info.txt
+                    echo Smoke test: PASSED > reports/smoke-result.txt
+                    echo Workspace: %cd% >> reports/build-info.txt
                 '''
                 archiveArtifacts artifacts: 'reports/**', fingerprint: true
-                echo "📦 Artifacts archived"
+                echo "📦 Artifacts archived: ${BUILD_URL}artifact/"
             }
         }
     }
@@ -126,7 +167,7 @@ pipeline {
             bat '''
                 @echo off
                 docker-compose down -v --remove-orphans 2>nul
-                echo ✅ Pipeline finished
+                echo "✅ Pipeline finished (${currentBuild.result ?: 'SUCCESS'})"
             '''
         }
     }
