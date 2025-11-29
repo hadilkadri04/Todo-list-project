@@ -1,79 +1,119 @@
 pipeline {
     agent any
 
+    // Définition des triggers (Déclencheurs)
+    triggers {
+        // Vérifie les changements toutes les minutes (si pas de webhook configuré)
+        pollSCM('* * * * *')
+    }
+
     stages {
-        stage('1. Checkout') {
+        // STAGE 1 : Checkout
+        stage('Checkout') {
             steps {
-                // Récupère le code depuis GitHub
+                echo "📝 Récupération du code..."
                 checkout scm
             }
         }
 
-        stage('2. Cleanup & Setup') {
+        // STAGE 2 : Setup
+        stage('Setup') {
             steps {
                 script {
-                    echo "🧹 Cleaning up old containers..."
-                    // Supprime les anciens conteneurs et volumes pour partir de zéro
+                    echo "🧹 Nettoyage de l'environnement..."
+                    // On s'assure que rien ne tourne avant de commencer
                     bat 'docker-compose down -v --remove-orphans'
                 }
             }
         }
 
-        stage('3. Build & Run') {
-            steps {
-                script {
-                    echo "🏗️ Building and Starting..."
-                    // Lance la construction et le démarrage en arrière-plan
-                    bat 'docker-compose up -d --build'
-                    
-                    echo "⏳ Waiting 30s for database initialization..."
-                    sleep 30 // Pause pour laisser le temps à MySQL de démarrer
+        // STAGE 3 : Build (Avec Parallélisation comme demandé)
+        stage('Build') {
+            failFast true
+            parallel {
+                stage('Build Backend') {
+                    steps {
+                        echo "🏗️ Construction de l'image Backend..."
+                        bat 'docker-compose build backend'
+                    }
+                }
+                stage('Build Frontend') {
+                    steps {
+                        echo "🏗️ Construction de l'image Frontend..."
+                        bat 'docker-compose build frontend'
+                    }
                 }
             }
         }
 
-        stage('4. Smoke Test') {
+        // STAGE 4 : Run (Docker)
+        stage('Run (Docker)') {
             steps {
                 script {
-                    echo "🧪 Testing connectivity..."
+                    echo "🚀 Démarrage des conteneurs..."
+                    bat 'docker-compose up -d'
+                    echo "⏳ Attente de l'initialisation de la base de données (30s)..."
+                    sleep 30
+                }
+            }
+        }
 
-                    // --- TEST BACKEND (Port 8085) ---
+        // STAGE 5 : Smoke Test
+        stage('Smoke Test') {
+            steps {
+                script {
+                    echo "🧪 Lancement des Smoke Tests..."
+                    
+                    // Test Backend (Port 8085)
                     writeFile file: 'test_backend.ps1', text: '''
                         try {
-                            $response = Invoke-WebRequest -Uri "http://localhost:8085" -Method Head -TimeoutSec 5 -ErrorAction Stop
-                            if ($response.StatusCode -eq 200) { 
-                                Write-Host "✅ Backend is UP!" 
-                                exit 0 
-                            }
-                            else { 
-                                Write-Host "❌ Backend returned status: $($response.StatusCode)" 
-                                exit 1 
-                            }
-                        } catch {
-                            Write-Host "❌ Backend unreachable: $_"
-                            exit 1
-                        }
+                            $r = Invoke-WebRequest -Uri "http://localhost:8085" -Method Head -TimeoutSec 5 -ErrorAction Stop
+                            if ($r.StatusCode -eq 200) { Write-Host "✅ Backend UP"; exit 0 }
+                            else { exit 1 }
+                        } catch { exit 1 }
                     '''
-                    bat 'powershell -ExecutionPolicy Bypass -File test_backend.ps1'
-
-                    // --- TEST FRONTEND (Port 8090) ---
+                    
+                    // Test Frontend (Port 8090)
                     writeFile file: 'test_frontend.ps1', text: '''
                         try {
-                            $response = Invoke-WebRequest -Uri "http://localhost:8090" -Method Head -TimeoutSec 5 -ErrorAction Stop
-                            if ($response.StatusCode -eq 200) { 
-                                Write-Host "✅ Frontend is UP!" 
-                                exit 0 
-                            }
-                            else { 
-                                Write-Host "❌ Frontend returned status: $($response.StatusCode)" 
-                                exit 1 
-                            }
-                        } catch {
-                            Write-Host "❌ Frontend unreachable: $_"
-                            exit 1
-                        }
+                            $r = Invoke-WebRequest -Uri "http://localhost:8090" -Method Head -TimeoutSec 5 -ErrorAction Stop
+                            if ($r.StatusCode -eq 200) { Write-Host "✅ Frontend UP"; exit 0 }
+                            else { exit 1 }
+                        } catch { exit 1 }
                     '''
-                    bat 'powershell -ExecutionPolicy Bypass -File test_frontend.ps1'
+
+                    // Exécution parallèle des tests
+                    parallel {
+                        stage('Test Back') { steps { bat 'powershell -ExecutionPolicy Bypass -File test_backend.ps1' } }
+                        stage('Test Front') { steps { bat 'powershell -ExecutionPolicy Bypass -File test_frontend.ps1' } }
+                    }
+                }
+            }
+        }
+
+        // STAGE 6 : Archive Artifacts (Logique conditionnelle selon le PDF)
+        stage('Archive Artifacts') {
+            steps {
+                script {
+                    // Création d'un rapport factice pour l'exemple
+                    writeFile file: 'pipeline_report.txt', text: "Rapport du Build ${env.BUILD_NUMBER}\nBranche: ${env.BRANCH_NAME}\nStatut: SUCCÈS"
+                    
+                    // Cas 1 : Build Versionné (Tag vX.Y.Z)
+                    if (env.TAG_NAME ==~ /v.*/) {
+                        echo "📦 Archivage complet pour la Release ${env.TAG_NAME}"
+                        // Ici on archiverait les binaires, on simule avec le rapport
+                        archiveArtifacts artifacts: 'pipeline_report.txt', fingerprint: true
+                    }
+                    // Cas 2 : Branche Dev (Push standard)
+                    else if (env.BRANCH_NAME == 'dev') {
+                        echo "📄 Archivage des logs pour Dev"
+                        archiveArtifacts artifacts: 'pipeline_report.txt'
+                    }
+                    // Cas 3 : Pull Request
+                    else if (env.CHANGE_ID) {
+                        echo "🔍 Archivage léger pour la Pull Request"
+                        archiveArtifacts artifacts: 'pipeline_report.txt'
+                    }
                 }
             }
         }
@@ -82,15 +122,12 @@ pipeline {
     post {
         always {
             script {
-                echo "🏁 Final Cleanup..."
+                echo "🏁 Cleanup final..."
                 bat 'docker-compose down -v'
+                
+                // Génération du statut pour le prof
+                echo "Statut du Pipeline : ${currentBuild.currentResult}"
             }
-        }
-        success {
-            echo "✅ Pipeline succeeded! The application works on ports 8085 and 8090."
-        }
-        failure {
-            echo "❌ Pipeline failed. Please check the logs."
         }
     }
 }
