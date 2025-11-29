@@ -1,11 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        // Optionnel : Force l'utilisation de Docker via TCP si nécessaire
-        // DOCKER_HOST = 'tcp://localhost:2375'
-    }
-
     stages {
         stage('1. Checkout') {
             steps {
@@ -43,7 +38,6 @@ pipeline {
                     echo "🧪 Testing connectivity..."
 
                     // --- TEST BACKEND (Port 8085) ---
-                    // On crée un script PowerShell temporaire pour tester le backend
                     writeFile file: 'test_backend.ps1', text: '''
                         try {
                             $response = Invoke-WebRequest -Uri "http://localhost:8085" -Method Head -TimeoutSec 5 -ErrorAction Stop
@@ -60,11 +54,9 @@ pipeline {
                             exit 1
                         }
                     '''
-                    // On exécute le script
                     bat 'powershell -ExecutionPolicy Bypass -File test_backend.ps1'
 
                     // --- TEST FRONTEND (Port 8090) ---
-                    // On crée un script PowerShell temporaire pour tester le frontend
                     writeFile file: 'test_frontend.ps1', text: '''
                         try {
                             $response = Invoke-WebRequest -Uri "http://localhost:8090" -Method Head -TimeoutSec 5 -ErrorAction Stop
@@ -81,7 +73,6 @@ pipeline {
                             exit 1
                         }
                     '''
-                    // On exécute le script
                     bat 'powershell -ExecutionPolicy Bypass -File test_frontend.ps1'
                 }
             }
@@ -92,7 +83,6 @@ pipeline {
         always {
             script {
                 echo "🏁 Final Cleanup..."
-                // Nettoyage final pour ne pas laisser tourner les conteneurs
                 bat 'docker-compose down -v'
             }
         }
