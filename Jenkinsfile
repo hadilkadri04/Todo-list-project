@@ -2,81 +2,105 @@ pipeline {
     agent any
 
     environment {
-        BUILD_TAG = "build-${BUILD_NUMBER}"
+        // Optionnel : Force l'utilisation de Docker via TCP si nécessaire
+        // DOCKER_HOST = 'tcp://localhost:2375'
     }
 
     stages {
-        stage('Start') {
-            steps {
-                echo "🚀 Starting Pipeline Build #${env.BUILD_NUMBER}"
-            }
-        }
-
         stage('1. Checkout') {
             steps {
-                script {
-                    // Vérifie si SCM est défini, sinon ignore ou utilise git direct
-                    try {
-                        checkout scm
-                    } catch (Exception e) {
-                        echo "⚠️ Pas de SCM détecté (Mode test manuel ?). Assurez-vous que les fichiers sont là."
-                        // Optionnel: git 'https://github.com/votre/repo.git'
-                    }
-                }
+                // Récupère le code depuis GitHub
+                checkout scm
             }
         }
 
         stage('2. Cleanup & Setup') {
             steps {
-                // Version simplifiée qui ne plante pas si rien n'est trouvé
-                bat '''
-                    @echo off
-                    echo [Setup] Cleaning ports...
-                    docker-compose down -v --remove-orphans >nul 2>&1
-                    exit /b 0
-                '''
+                script {
+                    echo "🧹 Cleaning up old containers..."
+                    // Supprime les anciens conteneurs et volumes pour partir de zéro
+                    bat 'docker-compose down -v --remove-orphans'
+                }
             }
         }
 
         stage('3. Build & Run') {
             steps {
-                bat """
-                    @echo off
-                    echo 🏗️ Building and Starting...
-                    docker-compose up -d --build
-                    if errorlevel 1 exit /b 1
-                """
-                echo "⏳ Waiting 30s for startup..."
-                sleep 30
+                script {
+                    echo "🏗️ Building and Starting..."
+                    // Lance la construction et le démarrage en arrière-plan
+                    bat 'docker-compose up -d --build'
+                    
+                    echo "⏳ Waiting 30s for database initialization..."
+                    sleep 30 // Pause pour laisser le temps à MySQL de démarrer
+                }
             }
         }
 
-        stage('4. Smoke Test (Safe Mode)') {
+        stage('4. Smoke Test') {
             steps {
                 script {
-                    // Utilisation de la commande powershell directe si le plugin est dispo, sinon bat simplifié
-                    def psCmd = 'try { $res = Invoke-RestMethod "http://localhost:8081/api.php" -ErrorAction Stop; if($res) { exit 0 } else { exit 1 } } catch { Write-Host $_; exit 1 }'
-                    
-                    // On écrit la commande dans un fichier temporaire pour éviter les problèmes de guillemets/batch
-                    writeFile file: 'test_backend.ps1', text: psCmd
-                    
-                    echo "🧪 Testing Backend..."
-                    def status = bat(returnStatus: true, script: 'powershell -ExecutionPolicy Bypass -File test_backend.ps1')
-                    
-                    if (status != 0) {
-                        currentBuild.result = 'FAILURE'
-                        error "❌ Smoke Test Failed: Backend not responding."
-                    } else {
-                        echo "✅ Backend OK"
-                    }
+                    echo "🧪 Testing connectivity..."
+
+                    // --- TEST BACKEND (Port 8085) ---
+                    // On crée un script PowerShell temporaire pour tester le backend
+                    writeFile file: 'test_backend.ps1', text: '''
+                        try {
+                            $response = Invoke-WebRequest -Uri "http://localhost:8085" -Method Head -TimeoutSec 5 -ErrorAction Stop
+                            if ($response.StatusCode -eq 200) { 
+                                Write-Host "✅ Backend is UP!" 
+                                exit 0 
+                            }
+                            else { 
+                                Write-Host "❌ Backend returned status: $($response.StatusCode)" 
+                                exit 1 
+                            }
+                        } catch {
+                            Write-Host "❌ Backend unreachable: $_"
+                            exit 1
+                        }
+                    '''
+                    // On exécute le script
+                    bat 'powershell -ExecutionPolicy Bypass -File test_backend.ps1'
+
+                    // --- TEST FRONTEND (Port 8090) ---
+                    // On crée un script PowerShell temporaire pour tester le frontend
+                    writeFile file: 'test_frontend.ps1', text: '''
+                        try {
+                            $response = Invoke-WebRequest -Uri "http://localhost:8090" -Method Head -TimeoutSec 5 -ErrorAction Stop
+                            if ($response.StatusCode -eq 200) { 
+                                Write-Host "✅ Frontend is UP!" 
+                                exit 0 
+                            }
+                            else { 
+                                Write-Host "❌ Frontend returned status: $($response.StatusCode)" 
+                                exit 1 
+                            }
+                        } catch {
+                            Write-Host "❌ Frontend unreachable: $_"
+                            exit 1
+                        }
+                    '''
+                    // On exécute le script
+                    bat 'powershell -ExecutionPolicy Bypass -File test_frontend.ps1'
                 }
             }
         }
     }
-    
+
     post {
         always {
-            bat 'docker-compose down -v >nul 2>&1'
+            script {
+                echo "🏁 Final Cleanup..."
+                // Nettoyage final pour ne pas laisser tourner les conteneurs
+                bat 'docker-compose down -v'
+            }
+        }
+        success {
+            echo "✅ Pipeline succeeded! The application works on ports 8085 and 8090."
+        }
+        failure {
+            echo "❌ Pipeline failed. Please check the logs."
         }
     }
 }
