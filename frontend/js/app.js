@@ -1,39 +1,36 @@
-// frontend/app.js - Todo List v2.0.0
+// frontend/app.js - Todo List v2.0.0 (Vibrant Edition)
 const API_URL = 'http://localhost:8081/api.php';
 let tasks = [];
 let currentFilter = 'all';
 
-// Initialize on page load
+// Initialisation
 document.addEventListener('DOMContentLoaded', () => {
     loadTasks();
     setupEventListeners();
     checkBackendStatus();
 });
 
-// Setup event listeners
 function setupEventListeners() {
     const taskForm = document.getElementById('task-form');
     taskForm.addEventListener('submit', handleAddTask);
 }
 
-// Load tasks from API
+// Chargement des tâches
 async function loadTasks() {
     const taskList = document.getElementById('task-list');
-    taskList.innerHTML = '<div class="loading"><div class="spinner"></div><p>Chargement des tâches...</p></div>';
+    // Loader avec ton nouveau style
+    taskList.innerHTML = `
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>🔮 Chargement de vos tâches magiques...</p>
+        </div>`;
     
     try {
         const response = await fetch(API_URL);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const data = await response.json();
-        
-        // Check for API errors
-        if (data.error) {
-            throw new Error(data.error);
-        }
+        if (data.error) throw new Error(data.error);
         
         tasks = data;
         renderTasks();
@@ -42,20 +39,17 @@ async function loadTasks() {
         updateBackendStatus(true);
         
     } catch (error) {
-        console.error('Error loading tasks:', error);
-        showError('Impossible de charger les tâches. Vérifiez que le backend est démarré.');
+        console.error('Error:', error);
+        showError('Impossible de charger les tâches. Le backend semble éteint 😴');
         updateBackendStatus(false);
-        
-        // Show empty state
-        document.getElementById('task-list').innerHTML = '';
+        taskList.innerHTML = '';
         document.getElementById('empty-state').style.display = 'block';
     }
 }
 
-// Add new task
+// Ajouter une tâche
 async function handleAddTask(e) {
     e.preventDefault();
-    
     const input = document.getElementById('new-task');
     const title = input.value.trim();
     
@@ -68,126 +62,79 @@ async function handleAddTask(e) {
             body: JSON.stringify({ title })
         });
         
-        if (!response.ok) {
-            throw new Error('Échec de la création de la tâche');
-        }
-        
         const data = await response.json();
-        
         if (data.status === 'success') {
-            // Clear input
             input.value = '';
-            
-            // Reload tasks
             await loadTasks();
-            hideError();
         } else {
-            throw new Error(data.error || 'Réponse inattendue');
+            throw new Error(data.error);
         }
-        
     } catch (error) {
-        console.error('Error adding task:', error);
-        showError('Impossible d\'ajouter la tâche.');
+        showError('Oups ! Impossible d\'ajouter la tâche 🌪️');
     }
 }
 
-// Toggle task completion
+// Basculer l'état (Terminé/En cours)
 async function toggleTask(id, isCompleted) {
     try {
         const response = await fetch(API_URL, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                id: id,
-                completed: isCompleted ? 0 : 1
-            })
+            body: JSON.stringify({ id: id, completed: isCompleted ? 0 : 1 })
         });
         
-        if (!response.ok) {
-            throw new Error('Échec de la mise à jour');
-        }
-        
         const data = await response.json();
-        
         if (data.status === 'success') {
-            // Update local task
             const task = tasks.find(t => t.id === id);
-            if (task) {
-                task.completed = isCompleted ? 0 : 1;
-            }
-            
-            // Re-render
+            if (task) task.completed = isCompleted ? 0 : 1;
             renderTasks();
             updateStats();
-            hideError();
-        } else {
-            throw new Error(data.error || 'Mise à jour échouée');
         }
-        
     } catch (error) {
-        console.error('Error toggling task:', error);
-        showError('Impossible de mettre à jour la tâche.');
+        showError('Impossible de mettre à jour la tâche 🔒');
     }
 }
 
-// Delete task
+// Supprimer une tâche
 async function deleteTask(id) {
-    if (!confirm('Voulez-vous vraiment supprimer cette tâche ?')) {
-        return;
-    }
+    if (!confirm('Voulez-vous vraiment faire disparaître cette tâche ? ✨')) return;
     
     try {
-        const response = await fetch(`${API_URL}?id=${id}`, { 
-            method: 'DELETE'
-        });
-        
-        if (!response.ok) {
-            throw new Error('Échec de la suppression');
-        }
-        
+        const response = await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
         const data = await response.json();
         
         if (data.status === 'success') {
-            // Remove from local array
             tasks = tasks.filter(t => t.id !== id);
-            
-            // Re-render
             renderTasks();
             updateStats();
-            hideError();
-        } else {
-            throw new Error(data.error || 'Suppression échouée');
         }
-        
     } catch (error) {
-        console.error('Error deleting task:', error);
-        showError('Impossible de supprimer la tâche.');
+        showError('La suppression a échoué 🛑');
     }
 }
 
-// Render tasks based on current filter
+// Affichage des tâches (Rendu HTML compatible avec ton CSS)
 function renderTasks() {
     const taskList = document.getElementById('task-list');
     const emptyState = document.getElementById('empty-state');
     
-    // Filter tasks
     let filteredTasks = tasks;
-    if (currentFilter === 'active') {
-        filteredTasks = tasks.filter(t => !t.completed);
-    } else if (currentFilter === 'completed') {
-        filteredTasks = tasks.filter(t => t.completed);
-    }
+    if (currentFilter === 'active') filteredTasks = tasks.filter(t => !t.completed);
+    else if (currentFilter === 'completed') filteredTasks = tasks.filter(t => t.completed);
     
-    // Show empty state if no tasks
     if (filteredTasks.length === 0) {
         taskList.innerHTML = '';
         emptyState.style.display = 'block';
+        // Mise à jour du texte vide selon le filtre
+        const emptyTitle = document.querySelector('#empty-state h3');
+        if(currentFilter === 'completed') emptyTitle.textContent = "Aucune tâche terminée 💤";
+        else if(currentFilter === 'active') emptyTitle.textContent = "Aucune tâche en cours 🎉";
+        else emptyTitle.textContent = "🎈 Aucune tâche pour le moment !";
         return;
     }
     
     emptyState.style.display = 'none';
     
-    // Render task HTML
     taskList.innerHTML = filteredTasks.map(task => `
         <div class="task ${task.completed ? 'completed' : ''}" data-id="${task.id}">
             <div class="task-content">
@@ -201,17 +148,17 @@ function renderTasks() {
             </div>
             <div class="task-actions">
                 <button class="btn-toggle" onclick="toggleTask(${task.id}, ${task.completed})">
-                    ${task.completed ? '↩️ Réactiver' : '✓ Terminer'}
+                    ${task.completed ? '↩️' : '✨'}
                 </button>
                 <button class="btn-delete" onclick="deleteTask(${task.id})">
-                    🗑️ Supprimer
+                    🗑️
                 </button>
             </div>
         </div>
     `).join('');
 }
 
-// Update statistics
+// Mettre à jour les statistiques
 function updateStats() {
     const total = tasks.length;
     const completed = tasks.filter(t => t.completed).length;
@@ -226,72 +173,61 @@ function updateStats() {
     document.getElementById('filter-completed-count').textContent = completed;
 }
 
-// Filter tasks
+// Filtrer
 function filterTasks(filter) {
     currentFilter = filter;
-    
-    // Update active button
     document.querySelectorAll('.filter-tab').forEach(btn => {
         btn.classList.remove('active');
-        if (btn.dataset.filter === filter) {
-            btn.classList.add('active');
-        }
+        if (btn.dataset.filter === filter) btn.classList.add('active');
     });
-    
-    // Re-render with filter
     renderTasks();
 }
 
-// Show error message
 function showError(message) {
-    const errorContainer = document.getElementById('error-container');
-    const errorText = document.getElementById('error-text');
-    
-    errorText.textContent = message;
-    errorContainer.style.display = 'flex';
+    const container = document.getElementById('error-container');
+    document.getElementById('error-text').textContent = message;
+    container.style.display = 'flex';
 }
 
-// Hide error message
 function hideError() {
-    const errorContainer = document.getElementById('error-container');
-    errorContainer.style.display = 'none';
+    document.getElementById('error-container').style.display = 'none';
 }
 
-// Update backend status indicator
+// Indicateur de statut avec Emojis
 function updateBackendStatus(isOnline) {
-    const statusIndicator = document.getElementById('backend-status');
-    const statusDot = statusIndicator.querySelector('.status-dot');
-    const statusText = statusIndicator.querySelector('.status-text');
+    const indicator = document.getElementById('backend-status');
+    const dot = indicator.querySelector('.status-dot');
+    const text = indicator.querySelector('.status-text');
     
     if (isOnline) {
-        statusDot.style.background = 'var(--success)';
-        statusText.textContent = 'Backend: Connecté';
+        dot.style.background = 'var(--success)';
+        dot.style.boxShadow = '0 0 15px var(--success)';
+        text.textContent = '🟢 Backend Connecté';
     } else {
-        statusDot.style.background = 'var(--danger)';
-        statusText.textContent = 'Backend: Déconnecté';
+        dot.style.background = 'var(--danger)';
+        dot.style.boxShadow = '0 0 15px var(--danger)';
+        text.textContent = '🔴 Backend Déconnecté';
     }
 }
 
-// Check backend status periodically
 function checkBackendStatus() {
     setInterval(async () => {
         try {
             const response = await fetch(API_URL, { method: 'HEAD' });
             updateBackendStatus(response.ok);
-        } catch (error) {
+        } catch {
             updateBackendStatus(false);
         }
-    }, 30000); // Check every 30 seconds
+    }, 30000);
 }
 
-// Escape HTML to prevent XSS
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// Make functions global for onclick handlers
+// Exposition globale
 window.toggleTask = toggleTask;
 window.deleteTask = deleteTask;
 window.filterTasks = filterTasks;
