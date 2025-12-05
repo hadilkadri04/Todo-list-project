@@ -2,6 +2,9 @@
    TODO LIST DEVOPS - DESIGN MODERNE V3.0
    ======================================== */
 
+/* Force le rechargement du CSS */
+html { scroll-behavior: smooth; }
+
 :root {
     /* Couleurs principales */
     --primary: #6366f1;
