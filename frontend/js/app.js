@@ -1,29 +1,24 @@
-// frontend/app.js - Todo List v2.0.0 (Vibrant Edition)
-const API_URL = 'http://localhost:8081/api.php';
+// frontend/js/app.js - Todo List v2.0.0
+
+const API_URL = 'http://localhost:8085/api/tasks.php';
 let tasks = [];
 let currentFilter = 'all';
 
-// Initialisation
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 Todo List v2.0.0 initialized');
     loadTasks();
     setupEventListeners();
     checkBackendStatus();
 });
 
 function setupEventListeners() {
-    const taskForm = document.getElementById('task-form');
-    taskForm.addEventListener('submit', handleAddTask);
+    document.getElementById('task-form').addEventListener('submit', handleAddTask);
 }
 
-// Chargement des tâches
 async function loadTasks() {
     const taskList = document.getElementById('task-list');
-    // Loader avec ton nouveau style
-    taskList.innerHTML = `
-        <div class="loading">
-            <div class="spinner"></div>
-            <p>🔮 Chargement de vos tâches magiques...</p>
-        </div>`;
+    taskList.innerHTML = '<div style="text-align:center;padding:2rem;color:#64748B;">⏳ Chargement...</div>';
     
     try {
         const response = await fetch(API_URL);
@@ -39,21 +34,23 @@ async function loadTasks() {
         updateBackendStatus(true);
         
     } catch (error) {
-        console.error('Error:', error);
-        showError('Impossible de charger les tâches. Le backend semble éteint 😴');
+        console.error('❌ Error:', error);
+        showError(`Impossible de charger les tâches: ${error.message}`);
         updateBackendStatus(false);
-        taskList.innerHTML = '';
         document.getElementById('empty-state').style.display = 'block';
     }
 }
 
-// Ajouter une tâche
 async function handleAddTask(e) {
     e.preventDefault();
+    
     const input = document.getElementById('new-task');
     const title = input.value.trim();
-    
     if (!title) return;
+    
+    const btn = e.target.querySelector('button');
+    btn.disabled = true;
+    btn.querySelector('.btn-text').textContent = 'Ajout...';
     
     try {
         const response = await fetch(API_URL, {
@@ -62,58 +59,74 @@ async function handleAddTask(e) {
             body: JSON.stringify({ title })
         });
         
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
         const data = await response.json();
-        if (data.status === 'success') {
+        if (data.status === 'success' && data.task) {
             input.value = '';
-            await loadTasks();
-        } else {
-            throw new Error(data.error);
+            tasks.unshift(data.task);
+            renderTasks();
+            updateStats();
+            hideError();
         }
     } catch (error) {
-        showError('Oups ! Impossible d\'ajouter la tâche 🌪️');
+        console.error('❌ Add error:', error);
+        showError(`Impossible d'ajouter: ${error.message}`);
+    } finally {
+        btn.disabled = false;
+        btn.querySelector('.btn-text').textContent = 'Ajouter';
     }
 }
 
-// Basculer l'état (Terminé/En cours)
 async function toggleTask(id, isCompleted) {
     try {
         const response = await fetch(API_URL, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id, completed: isCompleted ? 0 : 1 })
+            body: JSON.stringify({ 
+                id: id,
+                completed: isCompleted ? 0 : 1
+            })
         });
         
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
         const data = await response.json();
-        if (data.status === 'success') {
-            const task = tasks.find(t => t.id === id);
-            if (task) task.completed = isCompleted ? 0 : 1;
+        if (data.status === 'success' && data.task) {
+            const index = tasks.findIndex(t => t.id === id);
+            if (index !== -1) tasks[index] = data.task;
             renderTasks();
             updateStats();
+            hideError();
         }
     } catch (error) {
-        showError('Impossible de mettre à jour la tâche 🔒');
+        console.error('❌ Toggle error:', error);
+        showError(`Erreur: ${error.message}`);
+        setTimeout(loadTasks, 1000);
     }
 }
 
-// Supprimer une tâche
 async function deleteTask(id) {
-    if (!confirm('Voulez-vous vraiment faire disparaître cette tâche ? ✨')) return;
+    if (!confirm('Supprimer cette tâche ?')) return;
     
     try {
         const response = await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
-        const data = await response.json();
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
+        const data = await response.json();
         if (data.status === 'success') {
             tasks = tasks.filter(t => t.id !== id);
             renderTasks();
             updateStats();
+            hideError();
         }
     } catch (error) {
-        showError('La suppression a échoué 🛑');
+        console.error('❌ Delete error:', error);
+        showError(`Erreur: ${error.message}`);
+        setTimeout(loadTasks, 1000);
     }
 }
 
-// Affichage des tâches (Rendu HTML compatible avec ton CSS)
 function renderTasks() {
     const taskList = document.getElementById('task-list');
     const emptyState = document.getElementById('empty-state');
@@ -125,16 +138,10 @@ function renderTasks() {
     if (filteredTasks.length === 0) {
         taskList.innerHTML = '';
         emptyState.style.display = 'block';
-        // Mise à jour du texte vide selon le filtre
-        const emptyTitle = document.querySelector('#empty-state h3');
-        if(currentFilter === 'completed') emptyTitle.textContent = "Aucune tâche terminée 💤";
-        else if(currentFilter === 'active') emptyTitle.textContent = "Aucune tâche en cours 🎉";
-        else emptyTitle.textContent = "🎈 Aucune tâche pour le moment !";
         return;
     }
     
     emptyState.style.display = 'none';
-    
     taskList.innerHTML = filteredTasks.map(task => `
         <div class="task ${task.completed ? 'completed' : ''}" data-id="${task.id}">
             <div class="task-content">
@@ -147,10 +154,10 @@ function renderTasks() {
                 <span class="task-title">${escapeHtml(task.title)}</span>
             </div>
             <div class="task-actions">
-                <button class="btn-toggle" onclick="toggleTask(${task.id}, ${task.completed})">
-                    ${task.completed ? '↩️' : '✨'}
+                <button class="btn-toggle" onclick="toggleTask(${task.id}, ${task.completed})" title="${task.completed ? 'Réactiver' : 'Terminer'}">
+                    ${task.completed ? '↩️' : '✓'}
                 </button>
-                <button class="btn-delete" onclick="deleteTask(${task.id})">
+                <button class="btn-delete" onclick="deleteTask(${task.id})" title="Supprimer">
                     🗑️
                 </button>
             </div>
@@ -158,7 +165,6 @@ function renderTasks() {
     `).join('');
 }
 
-// Mettre à jour les statistiques
 function updateStats() {
     const total = tasks.length;
     const completed = tasks.filter(t => t.completed).length;
@@ -173,40 +179,39 @@ function updateStats() {
     document.getElementById('filter-completed-count').textContent = completed;
 }
 
-// Filtrer
 function filterTasks(filter) {
     currentFilter = filter;
     document.querySelectorAll('.filter-tab').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.filter === filter) btn.classList.add('active');
+        btn.classList.toggle('active', btn.dataset.filter === filter);
     });
     renderTasks();
 }
 
 function showError(message) {
-    const container = document.getElementById('error-container');
+    const errorContainer = document.getElementById('error-container');
     document.getElementById('error-text').textContent = message;
-    container.style.display = 'flex';
+    errorContainer.style.display = 'flex';
 }
 
 function hideError() {
     document.getElementById('error-container').style.display = 'none';
 }
 
-// Indicateur de statut avec Emojis
 function updateBackendStatus(isOnline) {
-    const indicator = document.getElementById('backend-status');
-    const dot = indicator.querySelector('.status-dot');
-    const text = indicator.querySelector('.status-text');
+    const statusIndicator = document.getElementById('backend-status');
+    const dot = statusIndicator.querySelector('.status-dot');
+    const text = statusIndicator.querySelector('.status-text');
     
     if (isOnline) {
-        dot.style.background = 'var(--success)';
-        dot.style.boxShadow = '0 0 15px var(--success)';
-        text.textContent = '🟢 Backend Connecté';
+        dot.style.background = '#B5EAD7';
+        dot.style.boxShadow = '0 0 5px #B5EAD7';
+        text.textContent = 'Backend: Connecté';
+        text.style.color = '#2F855A';
     } else {
-        dot.style.background = 'var(--danger)';
-        dot.style.boxShadow = '0 0 15px var(--danger)';
-        text.textContent = '🔴 Backend Déconnecté';
+        dot.style.background = '#FFB7B2';
+        dot.style.boxShadow = '0 0 5px #FFB7B2';
+        text.textContent = 'Backend: Déconnecté';
+        text.style.color = '#9B2C2C';
     }
 }
 
@@ -227,7 +232,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Exposition globale
+// Global functions
 window.toggleTask = toggleTask;
 window.deleteTask = deleteTask;
 window.filterTasks = filterTasks;

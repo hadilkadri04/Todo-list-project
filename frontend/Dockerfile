@@ -1,8 +1,18 @@
+# frontend/Dockerfile
 FROM nginx:alpine
 
-WORKDIR /usr/share/nginx/html
+# Remove default nginx files
+RUN rm -rf /usr/share/nginx/html/*
 
-COPY . .
+# Copy all frontend files
+COPY . /usr/share/nginx/html/
+
+# Set permissions
+RUN chmod -R 755 /usr/share/nginx/html
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
 
 EXPOSE 80
 
