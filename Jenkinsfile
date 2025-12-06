@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     parameters {
-        choice(name: 'MODE_PIPELINE', choices: ['DEV_PUSH', 'PULL_REQUEST', 'RELEASE_TAG'], description: 'Choisissez le type de pipeline à simuler')
+        choice(name: 'MODE_PIPELINE', choices: ['DEV_PUSH', 'PULL_REQUEST', 'RELEASE_TAG'],
+         description: 'Choisissez le type de pipeline à simuler')
         string(name: 'VERSION_TAG', defaultValue: 'v1.0.0', description: 'Si mode RELEASE, indiquez la version (ex: v1.0.0)')
     }
 
@@ -106,7 +107,7 @@ pipeline {
                         archiveArtifacts artifacts: reportName, fingerprint: true
                     }
                 }
-            }
+            } 
         }
     }
 
