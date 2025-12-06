@@ -1,33 +1,36 @@
 <?php
 // backend/config/db.php
 
-// Chemin vers la base de données SQLite
-$dbPath = __DIR__ . '/../data/tasks.db';
+// Récupération des variables d'environnement (définies dans docker-compose.yml)
+$host = getenv('DB_HOST') ?: 'db';
+$db   = getenv('DB_NAME') ?: 'todolist';
+$user = getenv('DB_USER') ?: 'devops';
+$pass = getenv('DB_PASS') ?: 'securepassword';
+$port = getenv('DB_PORT') ?: '3306';
+$charset = 'utf8mb4';
 
-// Créer le dossier data s'il n'existe pas
-$dataDir = dirname($dbPath);
-if (!is_dir($dataDir)) {
-    mkdir($dataDir, 0755, true);
-}
+$dsn = "mysql:host=$host;port=$port;dbname=$db;charset=$charset";
+$options = [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES   => false,
+];
 
 try {
-    // Connexion à la base de données SQLite
-    $pdo = new PDO("sqlite:$dbPath");
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo = new PDO($dsn, $user, $pass, $options);
+    
+    // Création de la table si elle n'existe pas (MySQL syntaxe)
+    $sql = "CREATE TABLE IF NOT EXISTS tasks (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        completed TINYINT(1) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )";
+    $pdo->exec($sql);
 
-    // Création de la table tasks si elle n'existe pas
-    $pdo->exec("CREATE TABLE IF NOT EXISTS tasks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        completed BOOLEAN DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )");
-
-    // echo "Connexion à la base de données réussie.\n"; // Utile pour déboguer localement
-
-} catch (PDOException $e) {
-    // En cas d'erreur, on affiche un message JSON pour que le frontend puisse le comprendre
+} catch (\PDOException $e) {
     header('Content-Type: application/json');
     echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
     exit;
 }
+?>
