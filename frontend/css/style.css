@@ -1,56 +1,56 @@
 /* ========================================
-   🌈 TODO LIST - DESIGN YOUTHFUL & VIBRANT
+   🌊 TODO LIST - DESIGN ÉLÉGANT NAVY & PASTEL
    ======================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap');
 
 :root {
-    /* Couleurs vibrantes et joyeuses */
-    --primary: #FF6B6B;
-    --primary-dark: #EE5A6F;
-    --primary-light: #FF8E8E;
-    --secondary: #4ECDC4;
-    --secondary-dark: #45B8AF;
-    --secondary-light: #6FD9D1;
-    --accent: #FFE66D;
-    --accent-dark: #FFD93D;
-    --success: #95E1D3;
-    --success-light: #B4F1E3;
-    --danger: #FF6B9D;
-    --danger-light: #FFB3D4;
-    --warning: #FFA07A;
-    --info: #A8E6CF;
-    --purple: #C77DFF;
-    --orange: #FFAB73;
+    /* Couleurs élégantes navy, bleu pastel et rose pastel */
+    --primary: #2C3E87;
+    --primary-dark: #1E2A5E;
+    --primary-light: #3D5AA8;
+    --secondary: #A8DAFF;
+    --secondary-dark: #7AC1F5;
+    --secondary-light: #C4E7FF;
+    --accent: #FFB3D9;
+    --accent-dark: #FF9AC8;
+    --success: #B4E4D3;
+    --success-light: #D0F2E4;
+    --danger: #FF9AAD;
+    --danger-light: #FFB8C6;
+    --warning: #FFD6A5;
+    --info: #A8DAFF;
+    --purple: #C8B6E2;
+    --lavender: #E6E0F5;
     
-    /* Arrière-plans colorés */
-    --bg-gradient-start: #FFF5F7;
-    --bg-gradient-mid: #FFF9E6;
-    --bg-gradient-end: #F0F8FF;
+    /* Arrière-plans élégants */
+    --bg-gradient-start: #F8FAFF;
+    --bg-gradient-mid: #F0F4FF;
+    --bg-gradient-end: #FFF8FC;
     --card-bg: #FFFFFF;
-    --card-hover: #FFFBFE;
-    --input-bg: #FFF9F0;
+    --card-hover: #FEFEFF;
+    --input-bg: #F8FAFF;
     
     /* Textes */
-    --text-primary: #2D3748;
-    --text-secondary: #718096;
-    --text-muted: #A0AEC0;
+    --text-primary: #2C3E87;
+    --text-secondary: #5E6E9E;
+    --text-muted: #9BA8C9;
     
-    /* Ombres colorées */
-    --shadow-sm: 0 2px 4px 0 rgba(255, 107, 107, 0.1);
-    --shadow-md: 0 6px 12px -2px rgba(255, 107, 107, 0.15);
-    --shadow-lg: 0 12px 24px -4px rgba(255, 107, 107, 0.2);
-    --shadow-xl: 0 20px 40px -8px rgba(255, 107, 107, 0.25);
-    --shadow-glow-pink: 0 0 30px rgba(255, 107, 107, 0.4);
-    --shadow-glow-blue: 0 0 30px rgba(78, 205, 196, 0.4);
-    --shadow-glow-yellow: 0 0 30px rgba(255, 230, 109, 0.4);
-    --shadow-glow-purple: 0 0 30px rgba(199, 125, 255, 0.4);
+    /* Ombres élégantes */
+    --shadow-sm: 0 2px 4px 0 rgba(44, 62, 135, 0.08);
+    --shadow-md: 0 6px 12px -2px rgba(44, 62, 135, 0.12);
+    --shadow-lg: 0 12px 24px -4px rgba(44, 62, 135, 0.15);
+    --shadow-xl: 0 20px 40px -8px rgba(44, 62, 135, 0.2);
+    --shadow-glow-blue: 0 0 30px rgba(168, 218, 255, 0.4);
+    --shadow-glow-pink: 0 0 30px rgba(255, 179, 217, 0.3);
+    --shadow-glow-navy: 0 0 30px rgba(44, 62, 135, 0.3);
+    --shadow-glow-purple: 0 0 30px rgba(200, 182, 226, 0.4);
     
     /* Bordures */
     --border-radius: 25px;
     --border-radius-md: 15px;
     --border-radius-sm: 10px;
-    --border-color: #FFE5EC;
+    --border-color: #E6EDFF;
 }
 
 /* ========================================
@@ -86,13 +86,13 @@ body::after {
     animation: float 15s ease-in-out infinite;
     pointer-events: none;
     z-index: -1;
-    opacity: 0.15;
+    opacity: 0.12;
 }
 
 body::before {
     width: 300px;
     height: 300px;
-    background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+    background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
     top: 10%;
     left: 10%;
     animation: float 20s ease-in-out infinite, colorChange 10s ease-in-out infinite;
@@ -101,7 +101,7 @@ body::before {
 body::after {
     width: 400px;
     height: 400px;
-    background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
+    background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
     bottom: 10%;
     right: 10%;
     animation: float 25s ease-in-out infinite reverse, colorChange 12s ease-in-out infinite;
@@ -120,8 +120,8 @@ body::after {
 }
 
 @keyframes colorChange {
-    0%, 100% { opacity: 0.15; }
-    50% { opacity: 0.25; }
+    0%, 100% { opacity: 0.12; }
+    50% { opacity: 0.2; }
 }
 
 @keyframes fadeIn {
@@ -162,9 +162,9 @@ body::after {
 }
 
 @keyframes rainbow {
-    0% { filter: hue-rotate(0deg) brightness(1.1); }
-    50% { filter: hue-rotate(20deg) brightness(1.2); }
-    100% { filter: hue-rotate(0deg) brightness(1.1); }
+    0% { filter: hue-rotate(0deg) brightness(1.05); }
+    50% { filter: hue-rotate(10deg) brightness(1.1); }
+    100% { filter: hue-rotate(0deg) brightness(1.05); }
 }
 
 .container {
@@ -174,7 +174,7 @@ body::after {
 }
 
 /* ========================================
-   HEADER SUPER COLORÉ
+   HEADER ÉLÉGANT
    ======================================== */
 .app-header {
     text-align: center;
@@ -196,28 +196,26 @@ body::after {
     font-weight: 900;
     background: linear-gradient(135deg, 
         var(--primary) 0%, 
-        var(--secondary) 25%,
-        var(--accent) 50%,
-        var(--purple) 75%,
-        var(--primary) 100%);
+        var(--secondary) 50%,
+        var(--accent) 100%);
     background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     letter-spacing: -2px;
     animation: shimmer 8s linear infinite, rainbow 5s ease-in-out infinite;
-    text-shadow: 0 5px 25px rgba(255, 107, 107, 0.3);
-    filter: drop-shadow(0 0 10px rgba(255, 107, 107, 0.5));
+    text-shadow: 0 5px 25px rgba(44, 62, 135, 0.2);
+    filter: drop-shadow(0 0 10px rgba(168, 218, 255, 0.3));
 }
 
 .version-badge {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--danger) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
     color: white;
     padding: 0.6rem 1.5rem;
     border-radius: 30px;
     font-size: 0.9rem;
     font-weight: 800;
-    box-shadow: var(--shadow-lg), var(--shadow-glow-pink);
+    box-shadow: var(--shadow-lg), var(--shadow-glow-navy);
     animation: pulse 2s infinite, bounce 3s ease-in-out infinite;
     position: relative;
     overflow: hidden;
@@ -255,7 +253,7 @@ body::after {
 }
 
 /* ========================================
-   STATS CARDS ULTRA COLORÉES
+   STATS CARDS ÉLÉGANTES
    ======================================== */
 .stats-grid {
     display: grid;
@@ -295,17 +293,17 @@ body::after {
 
 .stat-card:nth-child(1) {
     border-color: var(--primary);
-    background: linear-gradient(135deg, #FFE5EC 0%, #FFF5F7 100%);
+    background: linear-gradient(135deg, #E6EDFF 0%, #F0F4FF 100%);
 }
 
 .stat-card:nth-child(2) {
     border-color: var(--secondary);
-    background: linear-gradient(135deg, #E0F7F6 0%, #F0FFFE 100%);
+    background: linear-gradient(135deg, #E6F6FF 0%, #F0FAFF 100%);
 }
 
 .stat-card:nth-child(3) {
-    border-color: var(--success);
-    background: linear-gradient(135deg, #D4F1E9 0%, #EAF9F4 100%);
+    border-color: var(--accent);
+    background: linear-gradient(135deg, #FFE6F3 0%, #FFF0F8 100%);
 }
 
 .stat-card:hover {
@@ -314,7 +312,7 @@ body::after {
 }
 
 .stat-card:nth-child(1):hover {
-    box-shadow: var(--shadow-xl), var(--shadow-glow-pink);
+    box-shadow: var(--shadow-xl), var(--shadow-glow-navy);
     border-color: var(--primary-dark);
 }
 
@@ -324,8 +322,8 @@ body::after {
 }
 
 .stat-card:nth-child(3):hover {
-    box-shadow: var(--shadow-xl), 0 0 30px rgba(149, 225, 211, 0.5);
-    border-color: var(--success);
+    box-shadow: var(--shadow-xl), var(--shadow-glow-pink);
+    border-color: var(--accent-dark);
 }
 
 .stat-card:hover::before {
@@ -339,7 +337,7 @@ body::after {
 
 .stat-icon {
     font-size: 4rem;
-    filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.2));
+    filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.15));
     animation: bounce 2s ease-in-out infinite;
     transition: transform 0.3s;
 }
@@ -357,21 +355,21 @@ body::after {
 }
 
 .stat-card:nth-child(1) .stat-value {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--danger) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
 
 .stat-card:nth-child(2) .stat-value {
-    background: linear-gradient(135deg, var(--secondary) 0%, var(--info) 100%);
+    background: linear-gradient(135deg, var(--secondary-dark) 0%, var(--secondary) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
 
 .stat-card:nth-child(3) .stat-value {
-    background: linear-gradient(135deg, var(--success) 0%, var(--secondary) 100%);
+    background: linear-gradient(135deg, var(--accent-dark) 0%, var(--accent) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -391,10 +389,10 @@ body::after {
 }
 
 /* ========================================
-   ERROR MESSAGE COLORÉ
+   ERROR MESSAGE ÉLÉGANT
    ======================================== */
 .error-container {
-    background: linear-gradient(135deg, #FFE5EC 0%, #FFF0F5 100%);
+    background: linear-gradient(135deg, #FFE6F3 0%, #FFF0F8 100%);
     border: 3px solid var(--danger);
     border-radius: var(--border-radius);
     padding: 1.5rem 2rem;
@@ -413,7 +411,7 @@ body::after {
 
 #error-text {
     flex: 1;
-    color: #C53030;
+    color: #C53060;
     font-weight: 700;
 }
 
@@ -440,7 +438,7 @@ body::after {
 }
 
 /* ========================================
-   FORMULAIRE COLORÉ & FUN
+   FORMULAIRE ÉLÉGANT
    ======================================== */
 .task-form {
     margin-bottom: 3rem;
@@ -448,7 +446,7 @@ body::after {
 }
 
 .input-group {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 249, 240, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 255, 0.95) 100%);
     padding: 2rem;
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-lg);
@@ -473,7 +471,7 @@ body::after {
 }
 
 .input-group:focus-within {
-    box-shadow: var(--shadow-xl), var(--shadow-glow-pink);
+    box-shadow: var(--shadow-xl), var(--shadow-glow-blue);
     border-color: var(--primary);
     transform: translateY(-5px);
 }
@@ -498,7 +496,7 @@ body::after {
     outline: none;
     border-color: var(--primary);
     background: white;
-    box-shadow: 0 0 0 5px rgba(255, 107, 107, 0.2);
+    box-shadow: 0 0 0 5px rgba(44, 62, 135, 0.15);
     transform: scale(1.02);
 }
 
@@ -508,7 +506,7 @@ body::after {
 }
 
 .btn-add {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--danger) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
     color: white;
     border: none;
     padding: 0 3rem;
@@ -520,7 +518,7 @@ body::after {
     align-items: center;
     gap: 0.8rem;
     transition: all 0.4s;
-    box-shadow: var(--shadow-md), var(--shadow-glow-pink);
+    box-shadow: var(--shadow-md), var(--shadow-glow-navy);
     position: relative;
     overflow: hidden;
     text-transform: uppercase;
@@ -548,7 +546,7 @@ body::after {
 
 .btn-add:hover {
     transform: translateY(-5px) scale(1.05);
-    box-shadow: var(--shadow-xl), var(--shadow-glow-pink);
+    box-shadow: var(--shadow-xl), var(--shadow-glow-navy);
 }
 
 .btn-add:active {
@@ -565,14 +563,14 @@ body::after {
 }
 
 /* ========================================
-   FILTRES TABS COLORÉS
+   FILTRES TABS ÉLÉGANTS
    ======================================== */
 .filter-tabs {
     display: flex;
     justify-content: center;
     gap: 1rem;
     margin-bottom: 3rem;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 249, 240, 0.9) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 255, 0.9) 100%);
     padding: 1rem;
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-md);
@@ -597,15 +595,15 @@ body::after {
 }
 
 .filter-tab:hover {
-    background: rgba(255, 107, 107, 0.1);
+    background: rgba(44, 62, 135, 0.08);
     color: var(--text-primary);
     transform: translateY(-3px);
 }
 
 .filter-tab.active {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--danger) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
     color: white;
-    box-shadow: var(--shadow-md), var(--shadow-glow-pink);
+    box-shadow: var(--shadow-md), var(--shadow-glow-navy);
     transform: scale(1.08);
     border: 2px solid rgba(255, 255, 255, 0.5);
 }
@@ -626,7 +624,7 @@ body::after {
 }
 
 /* ========================================
-   TÂCHES SUPER COLORÉES
+   TÂCHES ÉLÉGANTES
    ======================================== */
 .task-list {
     display: flex;
@@ -635,7 +633,7 @@ body::after {
 }
 
 .task {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 249, 240, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 255, 0.95) 100%);
     padding: 2rem;
     border-radius: var(--border-radius);
     display: flex;
@@ -667,9 +665,9 @@ body::after {
 
 .task:hover {
     transform: translateX(10px) translateY(-8px) rotate(1deg);
-    box-shadow: var(--shadow-xl), var(--shadow-glow-pink);
+    box-shadow: var(--shadow-xl), var(--shadow-glow-blue);
     border-color: var(--primary);
-    background: linear-gradient(135deg, #FFF 0%, #FFF5F7 100%);
+    background: linear-gradient(135deg, #FFF 0%, #F0F4FF 100%);
 }
 
 .task-content {
@@ -710,7 +708,7 @@ body::after {
 
 .task.completed {
     opacity: 0.8;
-    background: linear-gradient(135deg, #D4F1E9 0%, #EAF9F4 100%);
+    background: linear-gradient(135deg, #D0F2E4 0%, #E6FAF2 100%);
     border-color: var(--success);
 }
 
@@ -725,11 +723,11 @@ body::after {
 }
 
 .task.completed:hover {
-    box-shadow: var(--shadow-xl), 0 0 30px rgba(149, 225, 211, 0.4);
+    box-shadow: var(--shadow-xl), 0 0 30px rgba(180, 228, 211, 0.4);
 }
 
 /* ========================================
-   BOUTONS D'ACTION COLORÉS
+   BOUTONS D'ACTION ÉLÉGANTS
    ======================================== */
 .task-actions {
     display: flex;
@@ -779,9 +777,9 @@ body::after {
 }
 
 .btn-toggle:hover {
-    background: linear-gradient(135deg, var(--success-light) 0%, #6FD9D1 100%);
+    background: linear-gradient(135deg, var(--success-light) 0%, #D0F2E4 100%);
     transform: translateY(-5px) scale(1.08);
-    box-shadow: var(--shadow-md), 0 0 20px rgba(149, 225, 211, 0.5);
+    box-shadow: var(--shadow-md), 0 0 20px rgba(180, 228, 211, 0.5);
 }
 
 .btn-delete {
@@ -791,9 +789,9 @@ body::after {
 }
 
 .btn-delete:hover {
-    background: linear-gradient(135deg, var(--danger-light) 0%, #FFB3D4 100%);
+    background: linear-gradient(135deg, var(--danger-light) 0%, #FFB8C6 100%);
     transform: translateY(-5px) scale(1.08);
-    box-shadow: var(--shadow-md), 0 0 20px rgba(255, 107, 157, 0.5);
+    box-shadow: var(--shadow-md), var(--shadow-glow-pink);
 }
 
 /* ========================================
@@ -806,10 +804,10 @@ body::after {
 }
 
 .empty-state {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 249, 240, 0.9) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 255, 0.9) 100%);
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-md);
-    border: 3px dashed var(--primary-light);
+    border: 3px dashed var(--secondary);
     animation: fadeIn 0.5s ease-out;
     backdrop-filter: blur(10px);
 }
@@ -819,7 +817,7 @@ body::after {
     height: 120px;
     margin: 0 auto 2rem;
     color: var(--primary);
-    opacity: 0.7;
+    opacity: 0.6;
     animation: float 4s ease-in-out infinite;
 }
 
@@ -852,12 +850,12 @@ body::after {
 }
 
 /* ========================================
-   FOOTER COLORÉ
+   FOOTER ÉLÉGANT
    ======================================== */
 .app-footer {
     margin-top: 5rem;
     padding: 2.5rem;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 249, 240, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 255, 0.95) 100%);
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-lg);
     display: flex;
@@ -873,16 +871,6 @@ body::after {
     content: '';
     position: absolute;
     bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 5px;
-    background: linear-gradient(90deg, 
-        var(--primary) 0%, 
-        var(--secondary) 25%, 
-        var(--accent) 50%, 
-        var(--purple) 75%, 
-        var(--primary) 100%);
-    animation: shimmer 3s linear infinite;
 }
 
 .status-indicator {
@@ -986,11 +974,11 @@ body::after {
         font-size: 2.5rem;
     }
 }
-/* ========================================
-   FINITIONS & DÉTAILS (À ajouter à la fin)
-   ======================================== */
 
-/* 1. Barre de défilement personnalisée (Chrome/Safari/Edge) */
+/* ========================================
+   FINITIONS & DÉTAILS
+   ======================================== */
+/* Barre de défilement personnalisée */
 ::-webkit-scrollbar {
     width: 12px;
 }
@@ -1009,15 +997,8 @@ body::after {
     background: linear-gradient(var(--primary-dark), var(--secondary-dark));
 }
 
-/* 2. Couleur de sélection du texte (Quand on surligne) */
+/* Couleur de sélection du texte */
 ::selection {
-    background: var(--accent);
-    color: var(--text-primary);
-}
-
-/* 3. Optimisation pour l'impression (au cas où) */
-@media print {
-    body { background: white; }
-    .btn-add, .task-actions, .filter-tabs { display: none; }
-    .task { break-inside: avoid; border: 1px solid #ccc; box-shadow: none; }
+    background: var(--secondary-light);
+    color: var(--primary);
 }
