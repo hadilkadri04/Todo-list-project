@@ -1,0 +1,40 @@
+# docker-compose.yml — CI-ready, no port conflicts, valid volumes
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass123
+      MYSQL_DATABASE: todolist
+      MYSQL_USER: devops
+      MYSQL_PASSWORD: securepassword
+    volumes:
+      - mysql_data:/var/lib/mysql   # ✅ named volume
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "devops", "-psecurepassword"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    ports:
+      - "8085:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: todolist
+      DB_USER: devops
+      DB_PASS: securepassword
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8090:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:   # ✅ top-level declaration (empty = use default driver)
